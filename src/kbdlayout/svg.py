@@ -52,7 +52,7 @@ def _render_key(parent: ET.Element, key: Key) -> None:
         {
             "id": f"key-{key.id}",
             "data-key-id": key.id,
-            "data-linux-keycode": str(key.linux_keycode),
+            "data-kbd-keycode": "" if key.kbd_keycode is None else str(key.kbd_keycode),
         },
     )
     if key.outline is None and key.rotation is None:

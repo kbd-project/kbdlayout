@@ -6,14 +6,11 @@ import pytest
 from kbdlayout import Model, ModelError, load_model
 
 
-FIXTURES = Path(__file__).parents[1] / "models" / "fixtures"
+@pytest.mark.parametrize("model_id", ["pc-104-ansi", "pc-105-iso"])
+def test_load_fixtures(model_id, generated_models):
+    model = load_model(generated_models[model_id])
 
-
-@pytest.mark.parametrize("filename", ["pc-104-ansi.json", "pc-105-iso.json"])
-def test_load_fixtures(filename):
-    model = load_model(FIXTURES / filename)
-
-    assert model.key("ESC").linux_keycode == 1
+    assert model.key("ESC").kbd_keycode == 1
     assert model.keycode(1).id == "ESC"
     assert model.bounds().w > 0
     assert model.bounds().h > 0
@@ -27,8 +24,8 @@ def test_load_fixtures(filename):
         (lambda data: data["groups"][0]["key_ids"].append("MISSING"), "references unknown keys"),
     ],
 )
-def test_reject_invalid_models(change, message):
-    data = json.loads((FIXTURES / "pc-104-ansi.json").read_text())
+def test_reject_invalid_models(change, message, generated_models):
+    data = json.loads(generated_models["pc-104-ansi"].read_text())
     change(data)
 
     with pytest.raises(ModelError, match=message):
@@ -44,7 +41,7 @@ def test_rotated_key_bounds():
             "keys": [
                 {
                     "id": "KEY",
-                    "linux_keycode": 1,
+                    "kbd_keycode": 1,
                     "x": 0,
                     "y": 0,
                     "w": 2,

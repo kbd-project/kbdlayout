@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--name", help="Human-readable model name.")
     parser.add_argument("--geometry-file", type=Path, default=Path("external/xkeyboard-config/geometry/pc"))
     parser.add_argument("--keycodes-file", type=Path, default=Path("external/xkeyboard-config/keycodes/evdev"))
+    parser.add_argument("--fallback-keycodes-file", type=Path, action="append", default=[Path("external/xkeyboard-config/keycodes/xfree86")])
     args = parser.parse_args()
     try:
         model = import_xkb_geometry(
@@ -24,6 +25,7 @@ def main() -> None:
             args.geometry,
             model_id=args.model_id,
             name=args.name,
+            fallback_keycodes_paths=tuple(args.fallback_keycodes_file),
         )
     except (OSError, XkbGeometryError) as error:
         parser.error(str(error))

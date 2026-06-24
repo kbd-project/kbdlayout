@@ -1,10 +1,17 @@
 RENDERER = python3 ./src/kbd-layout.py
 MODEL ?= models/fixtures/pc-104-ansi.json
 XKB_IMPORTER = python3 ./src/import-xkb-geometry.py
+XKB_GEOMETRY_DIR = external/xkeyboard-config/geometry
+MODEL_CATALOG = models/catalog.tsv
 
 models:
-	$(XKB_IMPORTER) pc104 models/fixtures/pc-104-ansi.json --model-id pc-104-ansi --name "PC 104-key ANSI"
-	$(XKB_IMPORTER) pc105 models/fixtures/pc-105-iso.json --model-id pc-105-iso --name "PC 105-key ISO"
+	@mkdir -p models/fixtures
+	@while IFS='	' read -r geometry_file geometry model_id name; do \
+		case "$$geometry_file" in \#*|'') continue ;; esac; \
+		$(XKB_IMPORTER) "$$geometry" "models/fixtures/$$model_id.json" \
+			--model-id "$$model_id" --name "$$name" \
+			--geometry-file "$(XKB_GEOMETRY_DIR)/$$geometry_file"; \
+	done < $(MODEL_CATALOG)
 
 render:
 	@$(RENDERER) $(MODEL)

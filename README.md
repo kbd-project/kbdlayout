@@ -41,6 +41,9 @@ keycode table, using the documented XKB-to-kernel offset of 8:
 make models
 ```
 
+Generated files in `models/fixtures/` are not tracked. The model catalog in
+`models/catalog.tsv` defines every geometry imported by `make models`.
+
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local
 reference source checkouts and are intentionally not tracked by this project.

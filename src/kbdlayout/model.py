@@ -14,6 +14,7 @@ class ModelError(ValueError):
 
 
 Point = tuple[float, float]
+NR_KEYS = 256
 
 
 @dataclass(frozen=True)
@@ -36,10 +37,10 @@ class Rotation:
 
 @dataclass(frozen=True)
 class Key:
-    """One physical key and its mapping to a Linux console keycode."""
+    """One physical key and its optional mapping to a kernel keycode."""
 
     id: str
-    linux_keycode: int
+    kbd_keycode: int | None
     x: float
     y: float
     w: float
@@ -117,7 +118,7 @@ class Model:
             raise ModelError("model.keys must not be empty")
         keys = tuple(_key(raw_key, f"model.keys[{index}]") for index, raw_key in enumerate(raw_keys))
         _unique((key.id for key in keys), "key ID")
-        _unique((key.linux_keycode for key in keys), "Linux keycode")
+        _unique((key.kbd_keycode for key in keys if key.kbd_keycode is not None), "kbd keycode")
 
         raw_groups = _list(data.get("groups", []), "model.groups")
         groups = tuple(_group(raw_group, f"model.groups[{index}]") for index, raw_group in enumerate(raw_groups))
@@ -137,12 +138,12 @@ class Model:
                 return key
         raise KeyError(key_id)
 
-    def keycode(self, linux_keycode: int) -> Key:
-        """Look up a physical key by its Linux console keycode."""
+    def keycode(self, kbd_keycode: int) -> Key:
+        """Look up a physical key by its kernel keycode."""
         for key in self.keys:
-            if key.linux_keycode == linux_keycode:
+            if key.kbd_keycode == kbd_keycode:
                 return key
-        raise KeyError(linux_keycode)
+        raise KeyError(kbd_keycode)
 
     def bounds(self) -> Bounds:
         """Return the bounding box that encloses all physical keys."""
@@ -167,10 +168,10 @@ def load_model(path: str | Path) -> Model:
 
 def _key(value: Any, path: str) -> Key:
     _expect_object(value, path)
-    _reject_unknown(value, {"id", "linux_keycode", "x", "y", "w", "h", "rotation", "outline", "extensions"}, path)
+    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "rotation", "outline", "extensions"}, path)
     key = Key(
         id=_id(value.get("id"), f"{path}.id"),
-        linux_keycode=_integer(value.get("linux_keycode"), f"{path}.linux_keycode", minimum=1, maximum=255),
+        kbd_keycode=_kbd_keycode(value.get("kbd_keycode"), f"{path}.kbd_keycode"),
         x=_number(value.get("x"), f"{path}.x"),
         y=_number(value.get("y"), f"{path}.y"),
         w=_number(value.get("w"), f"{path}.w"),
@@ -233,6 +234,14 @@ def _number(value: Any, path: str) -> float:
 def _integer(value: Any, path: str, *, minimum: int, maximum: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise ModelError(f"{path} must be an integer between {minimum} and {maximum}")
+    return value
+
+
+def _kbd_keycode(value: Any, path: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ModelError(f"{path} must be a non-negative integer or null")
     return value
 
 

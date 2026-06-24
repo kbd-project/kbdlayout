@@ -69,15 +69,14 @@
     "key": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "linux_keycode", "x", "y", "w", "h"],
+      "required": ["id", "kbd_keycode", "x", "y", "w", "h"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
         },
-        "linux_keycode": {
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 255
+        "kbd_keycode": {
+          "type": ["integer", "null"],
+          "minimum": 0
         },
         "x": {
           "$ref": "#/$defs/coordinate"

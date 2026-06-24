@@ -11,31 +11,28 @@ from kbdlayout.importers.xkb_geometry import XkbGeometryError
 ROOT = Path(__file__).parents[1]
 GEOMETRY = ROOT / "external" / "xkeyboard-config" / "geometry" / "pc"
 KEYCODES = ROOT / "external" / "xkeyboard-config" / "keycodes" / "evdev"
-FIXTURES = ROOT / "models" / "fixtures"
-
-
 @pytest.mark.parametrize(
-    ("geometry", "model_id", "name", "filename", "key_count"),
+    ("geometry", "model_id", "name", "key_count"),
     [
-        ("pc104", "pc-104-ansi", "PC 104-key ANSI", "pc-104-ansi.json", 104),
-        ("pc105", "pc-105-iso", "PC 105-key ISO", "pc-105-iso.json", 105),
+        ("pc104", "pc-104-ansi", "PC 104-key ANSI", 104),
+        ("pc105", "pc-105-iso", "PC 105-key ISO", 105),
     ],
 )
-def test_pc_fixtures_are_imported_from_xkeyboard_config(geometry, model_id, name, filename, key_count):
-    imported = import_xkb_geometry(GEOMETRY, KEYCODES, geometry, model_id=model_id, name=name)
+def test_catalog_models_are_imported_from_xkeyboard_config(geometry, model_id, name, key_count, generated_models):
+    imported = import_xkb_geometry(GEOMETRY, KEYCODES, geometry, model_id=model_id, name=name, fallback_keycodes_paths=(ROOT / "external" / "xkeyboard-config" / "keycodes" / "xfree86",))
 
-    assert imported == json.loads((FIXTURES / filename).read_text())
-    assert len(load_model(FIXTURES / filename).keys) == key_count
+    assert imported == json.loads(generated_models[model_id].read_text())
+    assert len(load_model(generated_models[model_id]).keys) == key_count
     assert imported["extensions"]["xkb"]["evdev_offset"] == EVDEV_OFFSET
 
 
-def test_evdev_mapping_uses_the_documented_offset():
-    model = load_model(FIXTURES / "pc-105-iso.json")
+def test_evdev_mapping_uses_the_documented_offset(generated_models):
+    model = load_model(generated_models["pc-105-iso"])
 
-    assert model.key("ESC").linux_keycode == 1
-    assert model.key("AE01").linux_keycode == 2
-    assert model.key("LSGT").linux_keycode == 86
-    assert model.key("MENU").linux_keycode == 127
+    assert model.key("ESC").kbd_keycode == 1
+    assert model.key("AE01").kbd_keycode == 2
+    assert model.key("LSGT").kbd_keycode == 86
+    assert model.key("MENU").kbd_keycode == 127
     assert model.key("RTRN").outline is not None
 
 
@@ -70,3 +67,29 @@ def test_importer_rejects_cyclic_geometry_includes(tmp_path):
 
     with pytest.raises(XkbGeometryError, match="cyclic geometry include"):
         import_xkb_geometry(tmp_path / "a", keycodes, "a", model_id="a")
+
+
+def test_importer_uses_fallback_keycodes_and_keeps_non_kbd_codes(tmp_path, capsys):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "vendor" {
+            shape "NORM" { { [18,18] } };
+            key.shape = "NORM";
+            section "Vendor" { row { keys { <I1F>, <FN> }; }; };
+        };'''
+    )
+    primary = tmp_path / "evdev"
+    primary.write_text("<FN> = 472;\n")
+    fallback = tmp_path / "xfree86"
+    fallback.write_text("<I1F> = 159;\n")
+
+    model = import_xkb_geometry(
+        geometry,
+        primary,
+        "vendor",
+        model_id="vendor",
+        fallback_keycodes_paths=(fallback,),
+    )
+
+    assert [(key["id"], key["kbd_keycode"]) for key in model["keys"]] == [("I1F", 151), ("FN", 464)]
+    assert "FN: kernel keycode 464 is outside NR_KEYS=256" in capsys.readouterr().err

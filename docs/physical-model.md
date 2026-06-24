@@ -27,10 +27,14 @@ Each `keys[]` item has two independent identifiers:
 
 - `id` is a stable physical-key identifier. XKB names such as `AE01`, `LFSH`
   and `RTRN` are suitable values.
-- `linux_keycode` is the Linux console keycode used to attach a `kbd` legend
-  layer later. It is explicit; consumers must not infer it from `id`.
+- `kbd_keycode` is the kernel keycode used to attach a `kbd` legend layer. It
+  is explicit; consumers must not infer it from `id`. It is `null` when an XKB
+  geometry key has no known kernel mapping.
 
-Key IDs and Linux keycodes must each be unique within a model. `groups` are
+Key IDs and non-null `kbd_keycode` values must each be unique within a model.
+The Linux console has `NR_KEYS = 256` entries, so a legend layer ignores keys
+whose `kbd_keycode` is outside `0..255`, while preserving that number for UI.
+`groups` are
 optional named collections of existing key IDs. They aid editing and rendering
 of blocks such as the main section, navigation cluster, or numpad; they do not
 change key coordinates.

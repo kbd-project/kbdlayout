@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import sys
 from typing import Any
+
+from ..model import NR_KEYS
 
 
 EVDEV_OFFSET = 8
@@ -31,12 +34,16 @@ def import_xkb_geometry(
     *,
     model_id: str,
     name: str | None = None,
+    fallback_keycodes_paths: tuple[str | Path, ...] = (),
 ) -> dict[str, Any]:
     """Convert one XKB geometry and evdev keycode map into canonical JSON."""
     geometry_path = Path(geometry_path)
     keycodes_path = Path(keycodes_path)
     geometry = _parse_geometry(geometry_path, geometry_name)
-    keycodes = _parse_evdev_keycodes(keycodes_path.read_text(encoding="utf-8"))
+    keycodes = _parse_xkb_keycodes(keycodes_path.read_text(encoding="utf-8"))
+    for fallback_path in fallback_keycodes_paths:
+        fallback = _parse_xkb_keycodes(Path(fallback_path).read_text(encoding="utf-8"))
+        keycodes = {**fallback, **keycodes}
     keys, groups = _keys_from_geometry(geometry, keycodes)
     return {
         "version": 1,
@@ -214,11 +221,14 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
                 shape = shapes[shape_name]
                 offset_x += float(entry["gap"])
                 key_name = entry["name"]
-                if key_name not in keycodes:
-                    raise XkbGeometryError(f"key {key_name!r} is missing from the evdev keycode map")
+                kbd_keycode = keycodes.get(key_name)
+                if kbd_keycode is None:
+                    print(f"warning: {key_name}: no kernel keycode mapping; kbd legends will be unavailable", file=sys.stderr)
+                elif kbd_keycode >= NR_KEYS:
+                    print(f"warning: {key_name}: kernel keycode {kbd_keycode} is outside NR_KEYS={NR_KEYS}; kbd legends will be unavailable", file=sys.stderr)
                 key = {
                     "id": key_name,
-                    "linux_keycode": keycodes[key_name] - EVDEV_OFFSET,
+                    "kbd_keycode": kbd_keycode,
                     "x": _units(offset_x),
                     "y": _units(offset_y + float(row["top"])),
                     "w": _units(shape.width),
@@ -233,7 +243,7 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
     return keys, groups
 
 
-def _parse_evdev_keycodes(source: str) -> dict[str, int]:
+def _parse_xkb_keycodes(source: str) -> dict[str, int]:
     values: dict[str, int | str] = {}
     for name, value in re.findall(r"<([A-Za-z0-9_]+)>\s*=\s*(-?\d+)\s*;", source):
         values[name] = int(value)
@@ -252,7 +262,7 @@ def _parse_evdev_keycodes(source: str) -> dict[str, int]:
         seen.add(name)
         return resolve(value, seen)
 
-    return {name: resolve(name) for name in values}
+    return {name: resolve(name) - EVDEV_OFFSET for name in values}
 
 
 def _tokens(source: str) -> list[str]:
