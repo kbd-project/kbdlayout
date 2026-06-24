@@ -51,6 +51,14 @@ def test_cli_writes_svg(generated_models):
     assert len(root.findall(".//svg:g[@data-key-id]", SVG_NS)) == 104
 
 
+def test_all_catalog_models_render(generated_models):
+    for path in generated_models.values():
+        model = load_model(path)
+        root = ET.fromstring(render_svg(model))
+        keys = root.findall(".//svg:g[@data-key-id]", SVG_NS)
+        assert len(keys) == len(model.keys)
+
+
 def test_renderer_applies_rotation_to_rectangular_keys():
     model = Model.from_data(
         {

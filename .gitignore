@@ -8,6 +8,7 @@
 /external/xkbprint-kle/
 /external/xkeyboard-config/
 /models/fixtures/*.json
+/models/fixtures/*.svg
 
 # Python development artifacts.
 __pycache__/

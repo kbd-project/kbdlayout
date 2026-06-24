@@ -30,8 +30,8 @@ Render a model to SVG with:
 python3 src/kbd-layout.py models/fixtures/pc-104-ansi.json > keyboard.svg
 ```
 
-`make render` prints the default fixture SVG to standard output. Select another
-model with `make render MODEL=models/fixtures/pc-105-iso.json`.
+`make render` regenerates every catalog model and writes SVG next to each JSON
+file under `models/fixtures/`.
 
 The PC fixtures are imported from the `pc104` and `pc105` XKB geometries in
 the local `xkeyboard-config` checkout. Key names are mapped through its evdev
@@ -41,8 +41,9 @@ keycode table, using the documented XKB-to-kernel offset of 8:
 make models
 ```
 
-Generated files in `models/fixtures/` are not tracked. The model catalog in
-`models/catalog.tsv` defines every geometry imported by `make models`.
+Generated JSON and SVG files in `models/fixtures/` are not tracked. The model
+catalog in `models/catalog.tsv` defines every geometry imported by `make models`
+and rendered by `make render`.
 
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local
