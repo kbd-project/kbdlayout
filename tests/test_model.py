@@ -16,6 +16,11 @@ def test_load_fixtures(model_id, generated_models):
     assert model.bounds().h > 0
 
 
+def test_all_catalog_models_validate(generated_models):
+    for path in generated_models.values():
+        assert load_model(path).keys
+
+
 @pytest.mark.parametrize(
     ("change", "message"),
     [

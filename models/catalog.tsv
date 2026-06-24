@@ -1,3 +1,12 @@
 # geometry-file	geometry	model-id	name
 pc	pc104	pc-104-ansi	PC 104-key ANSI
 pc	pc105	pc-105-iso	PC 105-key ISO
+pc	pc102	pc-102	PC 102-key
+pc	pc104alt	pc-104-alt	PC 104-key with ISO Enter
+pc	jp106	pc-106-jp	PC 106-key Japanese
+pc	kr106	pc-106-kr	PC 106-key Korean
+pc	abnt2	pc-107-abnt2	PC 107-key ABNT2
+macintosh	applealu_ansi	apple-aluminum-ansi	Apple Aluminum ANSI
+macintosh	applealu_iso	apple-aluminum-iso	Apple Aluminum ISO
+macintosh	applealu_jis	apple-aluminum-jis	Apple Aluminum JIS
+dell	dell65x	dell-65x	Dell 65x
