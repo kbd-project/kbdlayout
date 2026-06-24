@@ -1,0 +1,15 @@
+# Local Git history retained while this repository was reinitialized.
+/.git.kbdlayout/
+
+# Read-only reference checkouts.
+/external/kbd/
+/external/libxkbcommon/
+/external/keyboard-layout-editor/
+/external/xkbprint-kle/
+
+# Python development artifacts.
+__pycache__/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/.venv/
