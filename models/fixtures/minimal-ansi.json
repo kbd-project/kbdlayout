@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "id": "minimal-ansi",
+  "name": "Minimal ANSI fixture",
+  "unit": "u",
+  "keys": [
+    { "id": "ESC", "linux_keycode": 1, "x": 0, "y": 0, "w": 1, "h": 1 },
+    { "id": "AE01", "linux_keycode": 2, "x": 1.5, "y": 0, "w": 1, "h": 1 },
+    { "id": "BKSP", "linux_keycode": 14, "x": 12.5, "y": 0, "w": 2, "h": 1 },
+    { "id": "TAB", "linux_keycode": 15, "x": 0, "y": 1, "w": 1.5, "h": 1 },
+    { "id": "AD01", "linux_keycode": 16, "x": 1.5, "y": 1, "w": 1, "h": 1 },
+    { "id": "RTRN", "linux_keycode": 28, "x": 12.25, "y": 2, "w": 2.25, "h": 1 },
+    { "id": "LCTL", "linux_keycode": 29, "x": 0, "y": 3, "w": 1.25, "h": 1 }
+  ],
+  "groups": [
+    { "id": "main", "key_ids": ["ESC", "AE01", "BKSP", "TAB", "AD01", "RTRN", "LCTL"] }
+  ]
+}
