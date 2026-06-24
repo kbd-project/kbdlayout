@@ -14,7 +14,7 @@ FIXTURES = ROOT / "models" / "fixtures"
 
 
 def test_render_svg_preserves_key_identity_and_outline():
-    model = load_model(FIXTURES / "minimal-iso.json")
+    model = load_model(FIXTURES / "pc-105-iso.json")
     root = ET.fromstring(render_svg(model, scale=10))
 
     assert root.tag == "{http://www.w3.org/2000/svg}svg"
@@ -30,7 +30,7 @@ def test_render_svg_preserves_key_identity_and_outline():
 @pytest.mark.parametrize("option", ["--scale=0", "--padding=-1"])
 def test_cli_rejects_invalid_render_options(option):
     result = subprocess.run(
-        [sys.executable, "src/kbd-layout.py", option, str(FIXTURES / "minimal-ansi.json")],
+        [sys.executable, "src/kbd-layout.py", option, str(FIXTURES / "pc-104-ansi.json")],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -43,7 +43,7 @@ def test_cli_rejects_invalid_render_options(option):
 
 def test_cli_writes_svg():
     result = subprocess.run(
-        [sys.executable, "src/kbd-layout.py", str(FIXTURES / "minimal-ansi.json")],
+        [sys.executable, "src/kbd-layout.py", str(FIXTURES / "pc-104-ansi.json")],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -51,7 +51,7 @@ def test_cli_writes_svg():
     )
 
     root = ET.fromstring(result.stdout)
-    assert root.attrib["viewBox"] == "-0.1 -0.1 14.7 4.2"
+    assert len(root.findall(".//svg:g[@data-key-id]", SVG_NS)) == 104
 
 
 def test_renderer_applies_rotation_to_rectangular_keys():

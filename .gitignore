@@ -6,6 +6,7 @@
 /external/libxkbcommon/
 /external/keyboard-layout-editor/
 /external/xkbprint-kle/
+/external/xkeyboard-config/
 
 # Python development artifacts.
 __pycache__/

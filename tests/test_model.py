@@ -9,7 +9,7 @@ from kbdlayout import Model, ModelError, load_model
 FIXTURES = Path(__file__).parents[1] / "models" / "fixtures"
 
 
-@pytest.mark.parametrize("filename", ["minimal-ansi.json", "minimal-iso.json"])
+@pytest.mark.parametrize("filename", ["pc-104-ansi.json", "pc-105-iso.json"])
 def test_load_fixtures(filename):
     model = load_model(FIXTURES / filename)
 
@@ -28,7 +28,7 @@ def test_load_fixtures(filename):
     ],
 )
 def test_reject_invalid_models(change, message):
-    data = json.loads((FIXTURES / "minimal-ansi.json").read_text())
+    data = json.loads((FIXTURES / "pc-104-ansi.json").read_text())
     change(data)
 
     with pytest.raises(ModelError, match=message):
