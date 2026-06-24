@@ -22,10 +22,16 @@ the canonical representation.
 `external/kbd-layout.py` is the original standalone prototype. It renders a
 fixed ANSI or ISO PC keyboard from Linux console keymap files and is retained as
 reference while the new model-based renderer is built. `src/kbd-layout.py` is
-the new command-line entry point; it is currently a placeholder.
+the new command-line entry point.
 
-`make examples` invokes the new entry point. It must not be run until the new
-renderer is implemented, because the placeholder intentionally emits no SVG.
+Render a model to SVG with:
+
+```sh
+python3 src/kbd-layout.py models/fixtures/minimal-ansi.json > keyboard.svg
+```
+
+`make render` prints the default fixture SVG to standard output. Select another
+model with `make render MODEL=models/fixtures/minimal-iso.json`.
 
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local
