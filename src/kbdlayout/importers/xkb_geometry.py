@@ -35,7 +35,7 @@ def import_xkb_geometry(
     """Convert one XKB geometry and evdev keycode map into canonical JSON."""
     geometry_path = Path(geometry_path)
     keycodes_path = Path(keycodes_path)
-    geometry = _parse_geometry(geometry_path.read_text(encoding="utf-8"), geometry_name)
+    geometry = _parse_geometry(geometry_path, geometry_name)
     keycodes = _parse_evdev_keycodes(keycodes_path.read_text(encoding="utf-8"))
     keys, groups = _keys_from_geometry(geometry, keycodes)
     return {
@@ -56,16 +56,26 @@ def import_xkb_geometry(
     }
 
 
-def _parse_geometry(source: str, name: str) -> dict[str, Any]:
-    tokens = _tokens(source)
+def _parse_geometry(path: Path, name: str, stack: set[tuple[Path, str]] | None = None) -> dict[str, Any]:
+    path = path.resolve()
+    stack = set() if stack is None else stack
+    identity = (path, name)
+    if identity in stack:
+        raise XkbGeometryError(f"cyclic geometry include: {path}({name})")
+    stack.add(identity)
+    tokens = _tokens(path.read_text(encoding="utf-8"))
     for index in range(len(tokens) - 2):
         if tokens[index] == "xkb_geometry" and _string(tokens[index + 1]) == name and tokens[index + 2] == "{":
             body, _ = _block(tokens, index + 2)
-            return _parse_geometry_body(body)
+            try:
+                return _parse_geometry_body(body, path.parent, stack)
+            finally:
+                stack.remove(identity)
+    stack.remove(identity)
     raise XkbGeometryError(f"geometry {name!r} not found")
 
 
-def _parse_geometry_body(tokens: list[str]) -> dict[str, Any]:
+def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple[Path, str]]) -> dict[str, Any]:
     defaults: dict[str, Any] = {"section.left": 0.0, "row.left": 0.0, "key.shape": None, "key.gap": 0.0}
     shapes: dict[str, Shape] = {}
     sections: list[dict[str, Any]] = []
@@ -80,12 +90,19 @@ def _parse_geometry_body(tokens: list[str]) -> dict[str, Any]:
             section_name = _string(tokens[index + 1])
             body, index = _block(tokens, index + 2)
             sections.append(_parse_section(section_name, body, defaults))
+        elif token == "include" and index + 1 < len(tokens):
+            included_path, included_name = _include_target(_string(tokens[index + 1]), geometry_dir)
+            included = _parse_geometry(included_path, included_name, stack)
+            defaults.update(included["defaults"])
+            shapes.update(included["shapes"])
+            sections.extend(included["sections"])
+            index += 2
         else:
             statement, index = _statement(tokens, index)
             assignment = _assignment(statement)
             if assignment and assignment[0] in defaults:
                 defaults[assignment[0]] = assignment[1]
-    return {"shapes": shapes, "sections": sections}
+    return {"defaults": defaults, "shapes": shapes, "sections": sections}
 
 
 def _parse_shape(tokens: list[str]) -> Shape:
@@ -309,3 +326,11 @@ def _units(value: float) -> float:
 
 def _group_id(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]", "-", name).lower()
+
+
+def _include_target(value: str, geometry_dir: Path) -> tuple[Path, str]:
+    match = re.fullmatch(r"([A-Za-z0-9_./-]+)\(([A-Za-z0-9_.-]+)\)", value)
+    if match is None:
+        raise XkbGeometryError(f"unsupported geometry include {value!r}")
+    filename, geometry_name = match.groups()
+    return geometry_dir / filename, geometry_name
