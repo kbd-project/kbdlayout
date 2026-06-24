@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kbdlayout.dev/docs/physical-model.schema.json",
+  "title": "kbdlayout physical model",
+  "description": "A physical keyboard model expressed in keyboard units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "id", "unit", "keys"],
+  "properties": {
+    "version": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "name": { "type": "string", "minLength": 1 },
+    "unit": { "const": "u" },
+    "keys": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/key" } },
+    "groups": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+    "coordinate": { "type": "number" },
+    "point": {
+      "type": "array",
+      "prefixItems": [{ "$ref": "#/$defs/coordinate" }, { "$ref": "#/$defs/coordinate" }],
+      "items": false
+    },
+    "rotation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["angle", "origin"],
+      "properties": { "angle": { "type": "number" }, "origin": { "$ref": "#/$defs/point" } }
+    },
+    "key": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kbd_keycode", "x", "y", "w", "h"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kbd_keycode": { "type": ["integer", "null"], "minimum": 0 },
+        "x": { "$ref": "#/$defs/coordinate" },
+        "y": { "$ref": "#/$defs/coordinate" },
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "h": { "type": "number", "exclusiveMinimum": 0 },
+        "rotation": { "$ref": "#/$defs/rotation" },
+        "outline": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/point" } },
+        "extensions": { "type": "object" }
+      }
+    },
+    "group": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "key_ids"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "key_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }
+      }
+    }
+  }
+}

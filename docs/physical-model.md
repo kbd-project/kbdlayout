@@ -2,7 +2,8 @@
 
 A physical model describes only a keyboard's physical keys. It does not contain
 layout-dependent legends, `kbd` keysyms, modifier tables, or KLE formatting.
-Its schema is [physical-model.schema.json](../schemas/physical-model.schema.json).
+Its machine-readable contract is
+[physical-model.schema.json](physical-model.schema.json).
 
 ## Coordinate system
 
