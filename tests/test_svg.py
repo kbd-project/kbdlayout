@@ -24,6 +24,20 @@ def test_render_svg_preserves_key_identity_and_outline(generated_models):
     assert root.find("svg:g[@id='overlay-legends']", SVG_NS) is not None
 
 
+def test_render_svg_writes_key_ids_in_factory_legends(generated_models):
+    model = load_model(generated_models["pc-104-ansi"])
+    root = ET.fromstring(render_svg(model))
+
+    labels = root.findall("svg:g[@id='factory-legends']/svg:text", SVG_NS)
+    assert len(labels) == len(model.keys)
+    esc = next(label for label in labels if label.text == "ESC")
+    assert esc.attrib["class"] == "key-id"
+    assert esc.attrib["text-anchor"] == "end"
+    assert esc.attrib["dominant-baseline"] == "hanging"
+    assert float(esc.attrib["x"]) > model.key("ESC").x
+    assert float(esc.attrib["y"]) < model.key("ESC").y + model.key("ESC").h / 2
+
+
 @pytest.mark.parametrize("option", ["--scale=0", "--padding=-1"])
 def test_cli_rejects_invalid_render_options(option, generated_models):
     result = subprocess.run(
