@@ -1,8 +1,11 @@
 RENDERER = python3 ./src/kbd-layout.py
 XKB_IMPORTER = python3 ./src/import-xkb-geometry.py
 CATALOG_GENERATOR = python3 ./src/generate-model-catalog.py
+KBD_IMPORTER = python3 ./src/import-kbd-keymap.py
 XKB_GEOMETRY_DIR = external/xkeyboard-config/geometry
 MODEL_CATALOG = models/catalog.tsv
+KEYMAP ?= external/kbd/data/keymaps/i386/qwerty/us.map
+KEYMAP_OUTPUT ?= keymaps/fixtures/us.json
 SERVER_PORT ?= 8000
 
 models:
@@ -21,7 +24,11 @@ render: models
 		$(RENDERER) "models/fixtures/$$model_id.json" > "models/fixtures/$$model_id.svg"; \
 	done < $(MODEL_CATALOG)
 
-server: render
+keymaps:
+	@mkdir -p keymaps/fixtures
+	$(KBD_IMPORTER) $(KEYMAP) $(KEYMAP_OUTPUT)
+
+server: render keymaps
 	python3 -m http.server $(SERVER_PORT)
 
-.PHONY: models render server
+.PHONY: models render keymaps server

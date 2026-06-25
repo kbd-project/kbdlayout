@@ -9,6 +9,7 @@
 /external/xkeyboard-config/
 /models/fixtures/*.json
 /models/fixtures/*.svg
+/keymaps/fixtures/*.json
 
 # Python development artifacts.
 __pycache__/

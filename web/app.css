@@ -51,6 +51,18 @@ body {
   stroke: #b36b00;
 }
 
+#keyboard g[data-key-id].held .key {
+  fill: #b8d7ff;
+  stroke: #2263aa;
+}
+
+#keyboard .keymap-legend {
+  fill: #111;
+  font-family: sans-serif;
+  pointer-events: none;
+  text-anchor: middle;
+}
+
 .inspector {
   border-left: 1px solid #8885;
   grid-area: inspector;

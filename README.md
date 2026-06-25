@@ -51,13 +51,15 @@ and rendered by `make render`.
 
 The `web/` directory is a static read-only viewer for generated keyboard
 models. It reads `models/fixtures/catalog.json`, then loads the selected model
-JSON and SVG. Clicking a key shows its stable key ID, `kbd_keycode`, position,
-and size.
+JSON and SVG. It also loads `keymaps/fixtures/us.json` and overlays the active
+keymap symbols on the physical model. Clicking a key shows its stable key ID,
+`kbd_keycode`, active legend, position, and size.
 
 Generate the static data before opening the viewer:
 
 ```sh
 make render
+make keymaps
 ```
 
 The viewer does not require a project backend. Use any static file server for
@@ -68,6 +70,11 @@ make server
 ```
 
 Then open `http://localhost:8000/web/index.html`.
+
+Click modifier keys such as Shift, Control, Alt, AltGr, ShiftL, ShiftR, CtrlL,
+CtrlR, or CapsShift to toggle them as held. The viewer sums the held kbd
+modifier weights to select the matching keymap column and falls back to column
+0 when that exact column is not present.
 
 ## kbd keymaps
 
