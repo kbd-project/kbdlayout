@@ -17,12 +17,25 @@ const modifierWeights = new Map([
 
 const symbolAliases = new Map([
   ["space", "␠"],
-  ["Tab", "Tab"],
+  ["Tab", "⇥"],
   ["Escape", "Esc"],
-  ["Delete", "Del"],
-  ["BackSpace", "Bksp"],
-  ["Return", "Ret"],
-  ["Linefeed", "Lf"],
+  ["Delete", "⌦"],
+  ["BackSpace", "⌫"],
+  ["Return", "↵"],
+  ["Linefeed", "↵"],
+  ["Find", "Home"],
+  ["Select", "End"],
+  ["Prior", "PgUp"],
+  ["Next", "PgDn"],
+  ["Insert", "Ins"],
+  ["Remove", "Del"],
+  ["Backtab", "⇤"],
+  ["KP_Multiply", "×"],
+  ["KP_Divide", "÷"],
+  ["KP_Subtract", "−"],
+  ["KP_Add", "+"],
+  ["KP_Enter", "↵"],
+  ["KP_Period", "."],
   ["one", "1"],
   ["two", "2"],
   ["three", "3"],
@@ -65,6 +78,10 @@ const symbolAliases = new Map([
   ["greater", ">"],
   ["slash", "/"],
   ["question", "?"],
+  ["Left", "←"],
+  ["Right", "→"],
+  ["Up", "↑"],
+  ["Down", "↓"],
 ]);
 
 const symbolPrefixes = [
@@ -467,7 +484,11 @@ function compactSymbol(symbol) {
       }
     }
   }
-  return `${prefix}${symbolAliases.get(value) ?? value}`;
+  return `${prefix}${aliasForSymbol(value) ?? value}`;
+}
+
+function aliasForSymbol(symbol) {
+  return symbolAliases.get(symbol) ?? symbolAliases.get(symbol.toLowerCase()) ?? null;
 }
 
 function legendFontSize(key, entry) {
