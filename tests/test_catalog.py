@@ -26,6 +26,7 @@ def test_catalog_data_contains_static_model_paths():
     assert data["models"][0] == {
         "id": "pc-104-ansi",
         "name": "PC 104-key ANSI",
+        "group": "PC",
         "geometry_file": "pc",
         "geometry": "pc104",
         "json": "pc-104-ansi.json",

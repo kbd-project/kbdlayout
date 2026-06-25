@@ -10,8 +10,8 @@ body {
 .app {
   display: grid;
   grid-template:
-    "toolbar toolbar" auto
-    "viewer inspector" 1fr / minmax(0, 1fr) 18rem;
+    "toolbar" auto
+    "viewer" 1fr / minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -90,34 +90,4 @@ body {
   font-family: sans-serif;
   pointer-events: none;
   text-anchor: middle;
-}
-
-.inspector {
-  border-left: 1px solid #8885;
-  grid-area: inspector;
-  min-width: 0;
-  padding: 1rem;
-}
-
-.inspector h1 {
-  font-size: 1rem;
-  margin: 0 0 1rem;
-}
-
-.inspector dl {
-  display: grid;
-  gap: 0.5rem 1rem;
-  grid-template-columns: max-content 1fr;
-  margin: 0;
-}
-
-.inspector dt {
-  color: #666;
-}
-
-.inspector dd {
-  font-family: ui-monospace, monospace;
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }

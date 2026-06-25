@@ -94,6 +94,7 @@ const state = {
   keymapCatalog: null,
   keymap: null,
   keymapByKeycode: new Map(),
+  modelGroups: new Map(),
   keys: new Map(),
   selected: null,
   heldModifiers: new Map(),
@@ -106,11 +107,6 @@ const elements = {
   keymapSelect: document.querySelector("#keymap-select"),
   lockSequences: document.querySelector("#lock-sequences"),
   keyboard: document.querySelector("#keyboard"),
-  keyId: document.querySelector("#key-id"),
-  keycode: document.querySelector("#keycode"),
-  legend: document.querySelector("#legend"),
-  keyPosition: document.querySelector("#key-position"),
-  keySize: document.querySelector("#key-size"),
 };
 
 async function main() {
@@ -122,10 +118,11 @@ async function main() {
   state.keymapCatalog = keymapCatalog;
 
   for (const model of state.catalog.models) {
+    const group = modelGroup(model);
     const option = document.createElement("option");
     option.value = model.id;
     option.textContent = model.name;
-    elements.modelSelect.append(option);
+    group.append(option);
   }
   for (const keymap of state.keymapCatalog.keymaps) {
     const option = document.createElement("option");
@@ -140,6 +137,18 @@ async function main() {
     loadKeymap(defaultKeymapId()),
     loadModel(state.catalog.models[0].id),
   ]);
+}
+
+function modelGroup(model) {
+  const label = model.group ?? "Other";
+  let group = state.modelGroups.get(label);
+  if (!group) {
+    group = document.createElement("optgroup");
+    group.label = label;
+    elements.modelSelect.append(group);
+    state.modelGroups.set(label, group);
+  }
+  return group;
 }
 
 async function loadModel(modelId) {
@@ -204,18 +213,12 @@ function selectKey(keyId) {
   clearSelection();
 
   const node = elements.keyboard.querySelector(`g[data-key-id="${CSS.escape(keyId)}"]`);
-  const key = state.keys.get(keyId);
-  if (!node || !key) {
+  if (!node) {
     return;
   }
 
   state.selected = node;
   node.classList.add("selected");
-  elements.keyId.textContent = key.id;
-  elements.keycode.textContent = key.kbd_keycode ?? "null";
-  elements.legend.textContent = legendForKey(key)?.symbol ?? "-";
-  elements.keyPosition.textContent = `${formatNumber(key.x)}, ${formatNumber(key.y)}`;
-  elements.keySize.textContent = `${formatNumber(key.w)} x ${formatNumber(key.h)}`;
 }
 
 function clearSelection() {
@@ -223,11 +226,6 @@ function clearSelection() {
     state.selected.classList.remove("selected");
   }
   state.selected = null;
-  elements.keyId.textContent = "-";
-  elements.keycode.textContent = "-";
-  elements.legend.textContent = "-";
-  elements.keyPosition.textContent = "-";
-  elements.keySize.textContent = "-";
 }
 
 function clearHeldModifiers() {
@@ -520,10 +518,6 @@ async function fetchText(url) {
     throw new Error(`${url}: ${response.status}`);
   }
   return response.text();
-}
-
-function formatNumber(value) {
-  return Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 });
 }
 
 function formatSvgNumber(value) {

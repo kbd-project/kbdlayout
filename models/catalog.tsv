@@ -9,4 +9,29 @@ pc	abnt2	pc-107-abnt2	PC 107-key ABNT2
 macintosh	applealu_ansi	apple-aluminum-ansi	Apple Aluminum ANSI
 macintosh	applealu_iso	apple-aluminum-iso	Apple Aluminum ISO
 macintosh	applealu_jis	apple-aluminum-jis	Apple Aluminum JIS
+dell	dell101	dell-101	Dell 101
 dell	dell65x	dell-65x	Dell 65x
+dell	latitude	dell-latitude	Dell Latitude
+hp	pc101	hp-pc101	HP PC 101
+hp	omnibook	hp-omnibook	HP Omnibook
+hp	omnibook_intl	hp-omnibook-intl	HP Omnibook International
+hp	mini110	hp-mini110	HP Mini 110
+hp	dv5	hp-dv5	HP dv5
+microsoft	natural	microsoft-natural	Microsoft Natural
+microsoft	elite	microsoft-elite	Microsoft Elite
+thinkpad	us	thinkpad-us	ThinkPad US
+thinkpad	intl	thinkpad-intl	ThinkPad International
+thinkpad	60	thinkpad-60	ThinkPad 60
+hhk	basic	hhk-basic	Happy Hacking Keyboard Basic
+hhk	win1	hhk-win1	Happy Hacking Keyboard Win1
+hhk	win2	hhk-win2	Happy Hacking Keyboard Win2
+hhk	jp1	hhk-jp1	Happy Hacking Keyboard JP1
+hhk	jp2	hhk-jp2	Happy Hacking Keyboard JP2
+sun	type6	sun-type6	Sun Type 6
+sun	type6unix	sun-type6-unix	Sun Type 6 Unix
+sun	type7	sun-type7	Sun Type 7
+sun	type7unix	sun-type7-unix	Sun Type 7 Unix
+typematrix	tm2030USB	typematrix-2030-usb	TypeMatrix 2030 USB
+typematrix	tm2030USB-102	typematrix-2030-usb-102	TypeMatrix 2030 USB 102
+typematrix	tm2030USB-106	typematrix-2030-usb-106	TypeMatrix 2030 USB 106
+steelseries	apex300	steelseries-apex300	SteelSeries Apex 300

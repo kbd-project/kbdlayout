@@ -28,11 +28,24 @@ class CatalogEntry:
         """Return the model SVG path relative to the generated catalog."""
         return f"{self.model_id}.svg"
 
+    @property
+    def group(self) -> str:
+        """Return the browser grouping label for this model."""
+        return {
+            "hhk": "Happy Hacking Keyboard",
+            "hp": "HP",
+            "pc": "PC",
+            "steelseries": "SteelSeries",
+            "thinkpad": "ThinkPad",
+            "typematrix": "TypeMatrix",
+        }.get(self.geometry_file, self.geometry_file.title())
+
     def to_json(self) -> dict[str, str]:
         """Return the public JSON representation for this entry."""
         return {
             "id": self.model_id,
             "name": self.name,
+            "group": self.group,
             "geometry_file": self.geometry_file,
             "geometry": self.geometry,
             "json": self.json_path,
