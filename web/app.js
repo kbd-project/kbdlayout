@@ -15,6 +15,18 @@ const modifierWeights = new Map([
   ["CapsShift", 256],
 ]);
 
+const modifierKeyIds = new Map([
+  ["Shift", "LFSH"],
+  ["AltGr", "RALT"],
+  ["Control", "LCTL"],
+  ["Alt", "LALT"],
+  ["ShiftL", "LFSH"],
+  ["ShiftR", "RTSH"],
+  ["CtrlL", "LCTL"],
+  ["CtrlR", "RCTL"],
+  ["CapsShift", "CAPS"],
+]);
+
 const symbolAliases = new Map([
   ["space", "␠"],
   ["Tab", "⇥"],
@@ -323,6 +335,7 @@ function findLockActions() {
       seen.add(id);
       actions.push({
         keyId: key.id,
+        kbdKeycode: key.kbd_keycode,
         keymap: entry.keymap,
         lock,
         modifiers,
@@ -340,8 +353,16 @@ function findLockActions() {
 
 function renderLockSequences() {
   elements.lockSequences.replaceChildren();
+  if (!state.lockActions.length) {
+    const empty = document.createElement("span");
+    empty.classList.add("lock-sequences-empty");
+    empty.textContent = "none";
+    elements.lockSequences.append(empty);
+    return;
+  }
+
   for (const action of state.lockActions) {
-    const sequence = [...modifierNames(action.modifiers), action.keyId];
+    const sequence = [...modifierKeyIdsForWeights(action.modifiers), action.keyId];
     const chip = document.createElement("button");
     chip.type = "button";
     chip.classList.add("lock-sequence");
@@ -349,10 +370,14 @@ function renderLockSequences() {
       chip.classList.add("active");
     }
     chip.textContent = sequence.join(" + ");
-    chip.title = action.symbol;
+    chip.title = kbdSwitchSyntax(action);
     chip.addEventListener("click", () => activateLockAction(action));
     elements.lockSequences.append(chip);
   }
+}
+
+function kbdSwitchSyntax(action) {
+  return [...kbdModifierNames(action.modifiers), "keycode", String(action.kbdKeycode)].join(" ");
 }
 
 function renderHeldModifiers() {
@@ -453,6 +478,14 @@ function activeModifierWeights() {
 
 function modifierNames(weights) {
   return weights.map(modifierName);
+}
+
+function modifierKeyIdsForWeights(weights) {
+  return modifierNames(weights).map((name) => modifierKeyIds.get(name) ?? name);
+}
+
+function kbdModifierNames(weights) {
+  return modifierNames(weights).map((name) => name.toLowerCase());
 }
 
 function modifierName(weight) {

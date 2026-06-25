@@ -37,12 +37,26 @@ body {
   gap: 0.5rem;
 }
 
+.toolbar-switches {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  min-height: 1.8rem;
+}
+
+.toolbar-category {
+  color: #666;
+}
+
 #lock-sequences {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  min-height: 1.8rem;
+}
+
+.lock-sequences-empty {
+  color: #888;
 }
 
 .lock-sequence {
