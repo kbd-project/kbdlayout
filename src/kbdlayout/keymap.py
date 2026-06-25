@@ -175,6 +175,7 @@ def import_keymap_tree(
             {
                 "id": keymap_id,
                 "name": keymap_id,
+                "group": _keymap_group(keymap_id),
                 "source": _source_path(keymap, keymaps_base),
                 "json": relative_output.as_posix(),
             }
@@ -256,6 +257,13 @@ def _keymap_id(path: Path, root: Path) -> str:
 
 def _source_path(path: Path, root: Path) -> str:
     return _relative_path(path, root)
+
+
+def _keymap_group(keymap_id: str) -> str:
+    parts = keymap_id.split("/")
+    if len(parts) >= 3:
+        return parts[1]
+    return "Other"
 
 
 def _relative_path(path: Path, root: Path) -> str:

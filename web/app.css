@@ -16,13 +16,19 @@ body {
 }
 
 .toolbar {
-  align-items: center;
   border-bottom: 1px solid #8885;
+  display: grid;
+  gap: 0.5rem;
+  grid-area: toolbar;
+  grid-template-rows: auto minmax(1.8rem, auto);
+  padding: 0.75rem 1rem;
+}
+
+.toolbar-controls {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  grid-area: toolbar;
-  padding: 0.75rem 1rem;
 }
 
 .toolbar label {
@@ -32,9 +38,11 @@ body {
 }
 
 #lock-sequences {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  min-height: 1.8rem;
 }
 
 .lock-sequence {

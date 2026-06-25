@@ -95,6 +95,7 @@ const state = {
   keymap: null,
   keymapByKeycode: new Map(),
   modelGroups: new Map(),
+  keymapGroups: new Map(),
   keys: new Map(),
   selected: null,
   heldModifiers: new Map(),
@@ -125,10 +126,11 @@ async function main() {
     group.append(option);
   }
   for (const keymap of state.keymapCatalog.keymaps) {
+    const group = keymapGroup(keymap);
     const option = document.createElement("option");
     option.value = keymap.id;
     option.textContent = keymap.name;
-    elements.keymapSelect.append(option);
+    group.append(option);
   }
 
   elements.modelSelect.addEventListener("change", () => loadModel(elements.modelSelect.value));
@@ -147,6 +149,18 @@ function modelGroup(model) {
     group.label = label;
     elements.modelSelect.append(group);
     state.modelGroups.set(label, group);
+  }
+  return group;
+}
+
+function keymapGroup(keymap) {
+  const label = keymap.group ?? "Other";
+  let group = state.keymapGroups.get(label);
+  if (!group) {
+    group = document.createElement("optgroup");
+    group.label = label;
+    elements.keymapSelect.append(group);
+    state.keymapGroups.set(label, group);
   }
   return group;
 }
@@ -195,8 +209,8 @@ async function loadKeymap(keymapId) {
 }
 
 function defaultKeymapId() {
-  return state.keymapCatalog.keymaps.some((keymap) => keymap.id === "i386/qwerty/us")
-    ? "i386/qwerty/us"
+  return state.keymapCatalog.keymaps.some((keymap) => keymap.id === "i386/qwerty/defkeymap")
+    ? "i386/qwerty/defkeymap"
     : state.keymapCatalog.keymaps[0].id;
 }
 

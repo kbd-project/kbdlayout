@@ -120,6 +120,7 @@ def test_keymap_catalog_data_contains_static_paths():
             {
                 "id": "i386/qwerty/us",
                 "name": "i386/qwerty/us",
+                "group": "qwerty",
                 "source": "i386/qwerty/us.map",
                 "json": "i386/qwerty/us.json",
             }
@@ -132,6 +133,7 @@ def test_keymap_catalog_data_contains_static_paths():
             {
                 "id": "i386/qwerty/us",
                 "name": "i386/qwerty/us",
+                "group": "qwerty",
                 "source": "i386/qwerty/us.map",
                 "json": "i386/qwerty/us.json",
             }

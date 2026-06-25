@@ -9,15 +9,17 @@
   <body>
     <main class="app">
       <header class="toolbar">
-        <label>
-          Model
-          <select id="model-select"></select>
-        </label>
-        <label>
-          Keymap
-          <select id="keymap-select"></select>
-        </label>
-        <span id="lock-sequences" aria-label="Lock modifier sequences"></span>
+        <div class="toolbar-controls">
+          <label>
+            Model
+            <select id="model-select"></select>
+          </label>
+          <label>
+            Keymap
+            <select id="keymap-select"></select>
+          </label>
+        </div>
+        <div id="lock-sequences" aria-label="Lock modifier sequences"></div>
       </header>
 
       <section class="viewer" aria-label="Keyboard model">
