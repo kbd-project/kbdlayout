@@ -1,11 +1,12 @@
 RENDERER = python3 ./src/kbd-layout.py
 XKB_IMPORTER = python3 ./src/import-xkb-geometry.py
 CATALOG_GENERATOR = python3 ./src/generate-model-catalog.py
-KBD_IMPORTER = python3 ./src/import-kbd-keymap.py
+KEYMAP_GENERATOR = python3 ./src/generate-keymaps.py
 XKB_GEOMETRY_DIR = external/xkeyboard-config/geometry
 MODEL_CATALOG = models/catalog.tsv
-KEYMAP ?= external/kbd/data/keymaps/i386/qwerty/us.map
-KEYMAP_OUTPUT ?= keymaps/fixtures/us.json
+KEYMAP_SOURCE_ROOT ?= external/kbd/data/keymaps/i386
+KEYMAP_ROOT ?= external/kbd/data/keymaps
+KEYMAP_OUTPUT_ROOT ?= keymaps/fixtures
 SERVER_PORT ?= 8000
 
 models:
@@ -25,8 +26,8 @@ render: models
 	done < $(MODEL_CATALOG)
 
 keymaps:
-	@mkdir -p keymaps/fixtures
-	$(KBD_IMPORTER) $(KEYMAP) $(KEYMAP_OUTPUT)
+	@mkdir -p $(KEYMAP_OUTPUT_ROOT)
+	$(KEYMAP_GENERATOR) $(KEYMAP_SOURCE_ROOT) $(KEYMAP_OUTPUT_ROOT) --keymaps-root $(KEYMAP_ROOT)
 
 server: render keymaps
 	python3 -m http.server $(SERVER_PORT)

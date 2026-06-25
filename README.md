@@ -50,10 +50,11 @@ and rendered by `make render`.
 ## Browser viewer
 
 The `web/` directory is a static read-only viewer for generated keyboard
-models. It reads `models/fixtures/catalog.json`, then loads the selected model
-JSON and SVG. It also loads `keymaps/fixtures/us.json` and overlays the active
-keymap symbols on the physical model. Clicking a key shows its stable key ID,
-`kbd_keycode`, active legend, position, and size.
+models and keymaps. It reads `models/fixtures/catalog.json` and
+`keymaps/fixtures/catalog.json`, then loads the selected model JSON/SVG and
+selected keymap JSON. The active keymap symbols are overlaid on the physical
+model. Clicking a key shows its stable key ID, `kbd_keycode`, active legend,
+position, and size.
 
 Generate the static data before opening the viewer:
 
@@ -88,7 +89,10 @@ python3 src/import-kbd-keymap.py \
 
 The importer runs `loadkeys -u --tkeymap=4` twice: once for symbolic output and
 once with `LK_DUMP_NUMERIC=1` for numeric output. The generated JSON preserves
-both representations for every `kbd_keycode` and keymap column.
+both representations for every `kbd_keycode` and keymap column. `make keymaps`
+imports every `.map` below `external/kbd/data/keymaps/i386`, excluding
+`include` directories, and writes a static catalog next to the generated JSON
+files.
 
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local

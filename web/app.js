@@ -1,7 +1,7 @@
 "use strict";
 
 const catalogUrl = "../models/fixtures/catalog.json";
-const keymapUrl = "../keymaps/fixtures/us.json";
+const keymapCatalogUrl = "../keymaps/fixtures/catalog.json";
 
 const modifierWeights = new Map([
   ["Shift", 1],
@@ -74,18 +74,20 @@ const symbolPrefixes = [
 
 const state = {
   catalog: null,
+  keymapCatalog: null,
   keymap: null,
   keymapByKeycode: new Map(),
   keys: new Map(),
   selected: null,
   heldModifiers: new Map(),
+  lockedModifiers: new Map(),
+  lockActions: [],
 };
 
 const elements = {
-  select: document.querySelector("#model-select"),
-  status: document.querySelector("#status"),
-  keymapStatus: document.querySelector("#keymap-status"),
-  modifierStatus: document.querySelector("#modifier-status"),
+  modelSelect: document.querySelector("#model-select"),
+  keymapSelect: document.querySelector("#keymap-select"),
+  lockSequences: document.querySelector("#lock-sequences"),
   keyboard: document.querySelector("#keyboard"),
   keyId: document.querySelector("#key-id"),
   keycode: document.querySelector("#keycode"),
@@ -95,24 +97,32 @@ const elements = {
 };
 
 async function main() {
-  const [catalog, keymap] = await Promise.all([
+  const [catalog, keymapCatalog] = await Promise.all([
     fetchJson(catalogUrl),
-    fetchJson(keymapUrl),
+    fetchJson(keymapCatalogUrl),
   ]);
   state.catalog = catalog;
-  state.keymap = keymap;
-  state.keymapByKeycode = new Map(keymap.keys.map((key) => [key.kbd_keycode, key]));
-  elements.keymapStatus.textContent = `Keymap: ${keymap.id}`;
-  updateModifierStatus();
+  state.keymapCatalog = keymapCatalog;
 
   for (const model of state.catalog.models) {
     const option = document.createElement("option");
     option.value = model.id;
     option.textContent = model.name;
-    elements.select.append(option);
+    elements.modelSelect.append(option);
   }
-  elements.select.addEventListener("change", () => loadModel(elements.select.value));
-  await loadModel(state.catalog.models[0].id);
+  for (const keymap of state.keymapCatalog.keymaps) {
+    const option = document.createElement("option");
+    option.value = keymap.id;
+    option.textContent = keymap.name;
+    elements.keymapSelect.append(option);
+  }
+
+  elements.modelSelect.addEventListener("change", () => loadModel(elements.modelSelect.value));
+  elements.keymapSelect.addEventListener("change", () => loadKeymap(elements.keymapSelect.value));
+  await Promise.all([
+    loadKeymap(defaultKeymapId()),
+    loadModel(state.catalog.models[0].id),
+  ]);
 }
 
 async function loadModel(modelId) {
@@ -122,8 +132,7 @@ async function loadModel(modelId) {
     throw new Error(`unknown model: ${modelId}`);
   }
 
-  elements.select.value = modelId;
-  elements.status.textContent = "Loading...";
+  elements.modelSelect.value = modelId;
 
   const base = new URL(catalogUrl, window.location.href);
   const [model, svg] = await Promise.all([
@@ -136,16 +145,40 @@ async function loadModel(modelId) {
   elements.keyboard.querySelectorAll("g[data-key-id]").forEach((node) => {
     node.addEventListener("click", () => pressKey(node.dataset.keyId));
   });
+  updateLockActions();
   renderKeymapLegends();
   renderHeldModifiers();
-  elements.status.textContent = `${entry.name}: ${model.keys.length} keys`;
+}
+
+async function loadKeymap(keymapId) {
+  const entry = state.keymapCatalog.keymaps.find((keymap) => keymap.id === keymapId);
+  if (!entry) {
+    throw new Error(`unknown keymap: ${keymapId}`);
+  }
+
+  const base = new URL(keymapCatalogUrl, window.location.href);
+  const keymap = await fetchJson(new URL(entry.json, base));
+  state.keymap = keymap;
+  state.keymapByKeycode = new Map(keymap.keys.map((key) => [key.kbd_keycode, key]));
+  elements.keymapSelect.value = keymapId;
+  clearHeldModifiers();
+  clearSelection();
+  updateLockActions();
+  renderKeymapLegends();
+  renderHeldModifiers();
+}
+
+function defaultKeymapId() {
+  return state.keymapCatalog.keymaps.some((keymap) => keymap.id === "i386/qwerty/us")
+    ? "i386/qwerty/us"
+    : state.keymapCatalog.keymaps[0].id;
 }
 
 function pressKey(keyId) {
   const key = state.keys.get(keyId);
-  const modifier = key ? modifierForKey(key) : null;
-  if (modifier) {
-    toggleModifier(key, modifier);
+  const action = key ? actionForKey(key) : null;
+  if (action) {
+    applyKeyAction(key, action);
   }
   selectKey(keyId);
 }
@@ -180,7 +213,25 @@ function clearSelection() {
   elements.keySize.textContent = "-";
 }
 
-function toggleModifier(key, modifier) {
+function clearHeldModifiers() {
+  state.heldModifiers.clear();
+  state.lockedModifiers.clear();
+}
+
+function applyKeyAction(key, action) {
+  const lock = lockModifierForSymbol(action.symbol);
+  if (lock) {
+    activateLockAction({lock});
+    return;
+  }
+
+  const modifier = modifierWeights.get(action.symbol);
+  if (modifier) {
+    toggleHeldModifier(key, modifier);
+  }
+}
+
+function toggleHeldModifier(key, modifier) {
   if (state.heldModifiers.has(key.id)) {
     state.heldModifiers.delete(key.id);
   } else {
@@ -188,7 +239,91 @@ function toggleModifier(key, modifier) {
   }
   renderHeldModifiers();
   renderKeymapLegends();
-  updateModifierStatus();
+}
+
+function toggleLockedModifier(modifier) {
+  const name = modifierName(modifier);
+  if (state.lockedModifiers.has(name)) {
+    state.lockedModifiers.delete(name);
+  } else {
+    state.lockedModifiers.set(name, modifier);
+  }
+}
+
+function activateLockAction(action) {
+  toggleLockedModifier(action.lock);
+  state.heldModifiers.clear();
+  renderHeldModifiers();
+  renderKeymapLegends();
+  renderLockSequences();
+}
+
+function updateLockActions() {
+  state.lockActions = findLockActions();
+  renderLockSequences();
+}
+
+function findLockActions() {
+  if (!state.keymap || !state.keys.size) {
+    return [];
+  }
+
+  const actions = [];
+  const seen = new Set();
+  for (const key of state.keys.values()) {
+    if (key.kbd_keycode === null) {
+      continue;
+    }
+
+    const keymapKey = state.keymapByKeycode.get(key.kbd_keycode);
+    if (!keymapKey) {
+      continue;
+    }
+
+    for (const entry of keymapKey.entries) {
+      const lock = lockModifierForSymbol(entry.symbol);
+      if (!lock) {
+        continue;
+      }
+
+      const modifiers = decomposeKeymap(entry.keymap).filter((weight) => weight !== lock);
+      const id = `${modifiers.join("+")}:${key.id}:${entry.symbol}`;
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      actions.push({
+        keyId: key.id,
+        keymap: entry.keymap,
+        lock,
+        modifiers,
+        symbol: entry.symbol,
+      });
+    }
+  }
+
+  return actions.sort((left, right) =>
+    left.symbol.localeCompare(right.symbol)
+    || left.keymap - right.keymap
+    || left.keyId.localeCompare(right.keyId)
+  );
+}
+
+function renderLockSequences() {
+  elements.lockSequences.replaceChildren();
+  for (const action of state.lockActions) {
+    const sequence = [...modifierNames(action.modifiers), action.keyId];
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.classList.add("lock-sequence");
+    if (state.lockedModifiers.has(modifierName(action.lock))) {
+      chip.classList.add("active");
+    }
+    chip.textContent = sequence.join(" + ");
+    chip.title = action.symbol;
+    chip.addEventListener("click", () => activateLockAction(action));
+    elements.lockSequences.append(chip);
+  }
 }
 
 function renderHeldModifiers() {
@@ -203,7 +338,7 @@ function renderHeldModifiers() {
 
 function renderKeymapLegends() {
   const overlay = elements.keyboard.querySelector("#overlay-legends");
-  if (!overlay) {
+  if (!overlay || !state.keymap) {
     return;
   }
 
@@ -218,10 +353,10 @@ function renderKeymapLegends() {
     label.classList.add("keymap-legend");
     label.setAttribute("x", formatSvgNumber(key.x + key.w / 2));
     label.setAttribute("y", formatSvgNumber(key.y + key.h / 2));
-    label.setAttribute("font-size", formatSvgNumber(legendFontSize(key, entry.symbol)));
+    label.setAttribute("font-size", formatSvgNumber(legendFontSize(key, entry)));
     label.setAttribute("dominant-baseline", "middle");
     label.append(svgTitle(entry.symbol));
-    label.append(document.createTextNode(compactSymbol(entry.symbol)));
+    label.append(document.createTextNode(displayEntry(entry)));
     if (key.rotation) {
       const [originX, originY] = key.rotation.origin;
       label.setAttribute("transform", `rotate(${key.rotation.angle} ${originX} ${originY})`);
@@ -247,42 +382,75 @@ function legendForKey(key) {
   );
 }
 
-function modifierForKey(key) {
-  const baseEntry = state.keymapByKeycode.get(key.kbd_keycode)?.entries.find((entry) => entry.keymap === 0);
-  return baseEntry ? modifierWeights.get(baseEntry.symbol) : null;
+function actionForKey(key) {
+  return legendForKey(key);
 }
 
 function activeKeymapColumn() {
   const keymap = rawActiveKeymapColumn();
-  return state.keymap.keymaps.includes(keymap) ? keymap : 0;
+  return state.keymap?.keymaps.includes(keymap) ? keymap : 0;
 }
 
 function rawActiveKeymapColumn() {
-  return heldModifierWeights().reduce((keymap, weight) => keymap + weight, 0);
+  return activeModifierWeights().reduce((keymap, weight) => keymap + weight, 0);
 }
 
-function updateModifierStatus() {
-  const modifiers = heldModifierWeights();
-  const held = modifiers.length ? modifierNames(modifiers).join("+") : "none";
-  const raw = rawActiveKeymapColumn();
-  const active = activeKeymapColumn();
-  const fallback = raw === active ? "" : `, using ${active}`;
-  elements.modifierStatus.textContent = `Held: ${held}; keymap ${raw}${fallback}`;
+function decomposeKeymap(keymap) {
+  const weights = [];
+  let remainder = keymap;
+  for (const weight of modifierWeights.values()) {
+    if (remainder & weight) {
+      weights.push(weight);
+      remainder -= weight;
+    }
+  }
+  if (remainder) {
+    weights.push(remainder);
+  }
+  return weights;
 }
 
 function heldModifierWeights() {
   return [...new Set(state.heldModifiers.values())];
 }
 
+function lockedModifierWeights() {
+  return [...new Set(state.lockedModifiers.values())];
+}
+
+function activeModifierWeights() {
+  return [...new Set([...heldModifierWeights(), ...lockedModifierWeights()])];
+}
+
 function modifierNames(weights) {
-  return weights.map((weight) => {
-    for (const [name, value] of modifierWeights) {
-      if (value === weight) {
-        return name;
-      }
+  return weights.map(modifierName);
+}
+
+function modifierName(weight) {
+  for (const [name, value] of modifierWeights) {
+    if (value === weight) {
+      return name;
     }
-    return String(weight);
-  });
+  }
+  return String(weight);
+}
+
+function lockModifierForSymbol(symbol) {
+  if (!symbol.endsWith("_Lock")) {
+    return null;
+  }
+  return modifierWeights.get(symbol.slice(0, -"_Lock".length)) ?? null;
+}
+
+function displayEntry(entry) {
+  return unicodeCharacter(entry) ?? compactSymbol(entry.symbol);
+}
+
+function unicodeCharacter(entry) {
+  if (!entry.numeric.startsWith("U+")) {
+    return null;
+  }
+  return String.fromCodePoint(entry.numeric_value);
 }
 
 function compactSymbol(symbol) {
@@ -302,8 +470,8 @@ function compactSymbol(symbol) {
   return `${prefix}${symbolAliases.get(value) ?? value}`;
 }
 
-function legendFontSize(key, symbol) {
-  const compact = compactSymbol(symbol);
+function legendFontSize(key, entry) {
+  const compact = displayEntry(entry);
   const maxSize = 0.28;
   const minSize = 0.12;
   const maxWidth = key.w * 0.8;
@@ -342,6 +510,5 @@ function formatSvgNumber(value) {
 }
 
 main().catch((error) => {
-  elements.status.textContent = error.message;
   console.error(error);
 });

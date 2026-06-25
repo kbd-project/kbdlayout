@@ -8,7 +8,8 @@ import os
 from pathlib import Path
 import re
 import subprocess
-from typing import Any
+import sys
+from typing import Any, Iterable
 
 
 KEYCODE_RE = re.compile(r"^keycode\s+(\d+)\s+=\s+(.*)$")
@@ -124,6 +125,77 @@ def write_keymap_json(
     output.write_text(f"{json.dumps(data, indent=2, ensure_ascii=False)}\n", encoding="utf-8")
 
 
+def discover_keymaps(source_root: str | Path) -> tuple[Path, ...]:
+    """Return importable .map files under source_root, excluding include directories."""
+    root = Path(source_root)
+    return tuple(
+        sorted(
+            path
+            for path in root.rglob("*.map")
+            if "include" not in path.relative_to(root).parts
+        )
+    )
+
+
+def import_keymap_tree(
+    source_root: str | Path,
+    output_root: str | Path,
+    *,
+    loadkeys_path: str | Path = "external/kbd/src/loadkeys",
+    keymaps_root: str | Path = "external/kbd/data/keymaps",
+    tkeymap: int = 4,
+) -> None:
+    """Import all discovered keymaps and write a generated catalog."""
+    source = Path(source_root)
+    output = Path(output_root)
+    keymaps_base = Path(keymaps_root)
+    output.mkdir(parents=True, exist_ok=True)
+    for generated in output.rglob("*.json"):
+        generated.unlink()
+
+    entries: list[dict[str, str]] = []
+    errors: list[str] = []
+    for keymap in discover_keymaps(source):
+        keymap_id = _keymap_id(keymap, keymaps_base)
+        relative_output = Path(f"{keymap_id}.json")
+        output_path = output / relative_output
+        try:
+            write_keymap_json(
+                keymap,
+                output_path,
+                loadkeys_path=loadkeys_path,
+                keymaps_root=keymaps_base,
+                tkeymap=tkeymap,
+            )
+        except ValueError as error:
+            errors.append(f"{keymap}: {error}")
+            continue
+
+        entries.append(
+            {
+                "id": keymap_id,
+                "name": keymap_id,
+                "source": _source_path(keymap, keymaps_base),
+                "json": relative_output.as_posix(),
+            }
+        )
+
+    if errors:
+        for message in errors:
+            print(message, file=sys.stderr)
+        raise ValueError(f"failed to import {len(errors)} keymap(s)")
+
+    _write_keymap_catalog(output / "catalog.json", entries)
+
+
+def keymap_catalog_data(entries: Iterable[dict[str, str]]) -> dict[str, Any]:
+    """Return the public generated keymap catalog document."""
+    return {
+        "version": 1,
+        "keymaps": list(entries),
+    }
+
+
 def _run_loadkeys(loadkeys_path: str | Path, keymap_path: Path, *, tkeymap: int, numeric: bool) -> str:
     environment = os.environ.copy()
     if numeric:
@@ -188,6 +260,14 @@ def _source_path(path: Path, root: Path) -> str:
 
 def _relative_path(path: Path, root: Path) -> str:
     try:
-        return path.resolve().relative_to(root.resolve()).as_posix()
+        return path.relative_to(root).as_posix()
     except ValueError:
-        return path.as_posix()
+        try:
+            return path.absolute().relative_to(root.absolute()).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+
+def _write_keymap_catalog(path: Path, entries: list[dict[str, str]]) -> None:
+    data = keymap_catalog_data(entries)
+    path.write_text(f"{json.dumps(data, indent=2, ensure_ascii=False)}\n", encoding="utf-8")

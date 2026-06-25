@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from kbdlayout.keymap import keymap_data, parse_keymap_dump
+from kbdlayout.keymap import discover_keymaps, keymap_catalog_data, keymap_data, parse_keymap_dump
 
 
 ROOT = Path(__file__).parents[1]
@@ -103,3 +103,37 @@ def test_cli_imports_one_kbd_keymap(tmp_path):
     assert key_q["entries"][0]["symbol"] == "+q"
     assert key_q["entries"][0]["numeric"] == "+0x0b71"
     assert key_q["entries"][0]["numeric_value"] == 2929
+
+
+def test_discover_keymaps_skips_include_directories(tmp_path):
+    (tmp_path / "qwerty").mkdir()
+    (tmp_path / "include").mkdir()
+    (tmp_path / "qwerty" / "us.map").write_text("")
+    (tmp_path / "include" / "linux.map").write_text("")
+
+    assert discover_keymaps(tmp_path) == (tmp_path / "qwerty" / "us.map",)
+
+
+def test_keymap_catalog_data_contains_static_paths():
+    data = keymap_catalog_data(
+        [
+            {
+                "id": "i386/qwerty/us",
+                "name": "i386/qwerty/us",
+                "source": "i386/qwerty/us.map",
+                "json": "i386/qwerty/us.json",
+            }
+        ]
+    )
+
+    assert data == {
+        "version": 1,
+        "keymaps": [
+            {
+                "id": "i386/qwerty/us",
+                "name": "i386/qwerty/us",
+                "source": "i386/qwerty/us.map",
+                "json": "i386/qwerty/us.json",
+            }
+        ],
+    }

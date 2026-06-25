@@ -19,6 +19,7 @@ body {
   align-items: center;
   border-bottom: 1px solid #8885;
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   grid-area: toolbar;
   padding: 0.75rem 1rem;
@@ -30,8 +31,36 @@ body {
   gap: 0.5rem;
 }
 
+#lock-sequences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.lock-sequence {
+  background: transparent;
+  border: 1px solid #8885;
+  border-radius: 999px;
+  color: inherit;
+  cursor: pointer;
+  font-family: ui-monospace, monospace;
+  font-size: inherit;
+  padding: 0.15rem 0.45rem;
+}
+
+.lock-sequence:hover {
+  border-color: #888;
+}
+
+.lock-sequence.active {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: white;
+}
+
 .viewer {
   grid-area: viewer;
+  min-width: 0;
   overflow: auto;
   padding: 1rem;
 }
@@ -66,6 +95,7 @@ body {
 .inspector {
   border-left: 1px solid #8885;
   grid-area: inspector;
+  min-width: 0;
   padding: 1rem;
 }
 
@@ -88,4 +118,6 @@ body {
 .inspector dd {
   font-family: ui-monospace, monospace;
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
