@@ -22,6 +22,8 @@ class XkbGeometryError(ValueError):
 
 @dataclass(frozen=True)
 class Shape:
+    x: float
+    y: float
     width: float
     height: float
     outline: tuple[tuple[float, float], ...] | None
@@ -122,13 +124,13 @@ def _parse_shape(tokens: list[str]) -> Shape:
                 raise XkbGeometryError("shape has no outline points")
             if len(points) == 1:
                 width, height = points[0]
-                return Shape(width=width, height=height, outline=None)
+                return Shape(x=0.0, y=0.0, width=width, height=height, outline=None)
             min_x = min(x for x, _ in points)
             min_y = min(y for _, y in points)
             max_x = max(x for x, _ in points)
             max_y = max(y for _, y in points)
             normalized = tuple((x - min_x, y - min_y) for x, y in points)
-            return Shape(width=max_x - min_x, height=max_y - min_y, outline=normalized)
+            return Shape(x=min_x, y=min_y, width=max_x - min_x, height=max_y - min_y, outline=normalized)
         index += 1
     raise XkbGeometryError("shape has no outline")
 
@@ -196,12 +198,32 @@ def _parse_key_entry(tokens: list[str], defaults: dict[str, Any]) -> dict[str, A
     shape = defaults["key.shape"]
     gap = defaults["key.gap"]
     index = key_index + 1
-    while index < len(tokens) and tokens[index] == ",":
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "shape" and index + 2 < len(tokens) and tokens[index + 1] == "=":
+            shape = _string(tokens[index + 2])
+            index += 3
+            continue
+        if tokens[index:index + 4] == ["key", ".", "shape", "="] and index + 4 < len(tokens):
+            shape = _string(tokens[index + 4])
+            index += 5
+            continue
+        if token == "gap" and index + 2 < len(tokens) and tokens[index + 1] == "=":
+            gap = float(tokens[index + 2])
+            index += 3
+            continue
+        if tokens[index:index + 4] == ["key", ".", "gap", "="] and index + 4 < len(tokens):
+            gap = float(tokens[index + 4])
+            index += 5
+            continue
+        if token == "=":
+            index += 2
+            continue
+        if token.startswith('"'):
+            shape = _string(token)
+        elif _is_number(token):
+            gap = float(token)
         index += 1
-    if index < len(tokens) and tokens[index].startswith('"'):
-        shape = _string(tokens[index])
-    elif index < len(tokens) and _is_number(tokens[index]):
-        gap = float(tokens[index])
     return {"name": name, "shape": shape, "gap": gap}
 
 
@@ -229,8 +251,8 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
                 key = {
                     "id": key_name,
                     "kbd_keycode": kbd_keycode,
-                    "x": _units(offset_x),
-                    "y": _units(offset_y + float(row["top"])),
+                    "x": _units(offset_x + shape.x),
+                    "y": _units(offset_y + float(row["top"]) + shape.y),
                     "w": _units(shape.width),
                     "h": _units(shape.height),
                 }

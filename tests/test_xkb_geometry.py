@@ -59,6 +59,54 @@ def test_importer_resolves_geometry_includes(tmp_path):
     assert [group["id"] for group in model["groups"]] == ["base", "child"]
 
 
+def test_importer_honors_negative_shape_origins(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "negative" {
+            shape "NORM" { { [18,18] } };
+            shape "RTRN" { { [-14,19], [-14,37], [28,37], [28,0], [0,0], [0,19] } };
+            key.shape = "NORM";
+            key.gap = 1;
+            section "Alpha" {
+                row { keys { <AD11>, <AD12>, { <RTRN>, "RTRN" } }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<AD11> = 35;\n<AD12> = 36;\n<RTRN> = 36;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "negative", model_id="negative")
+    enter = next(key for key in model["keys"] if key["id"] == "RTRN")
+
+    assert enter["x"] == pytest.approx((1 + 18 + 1 + 18 + 1 - 14) / 18)
+    assert enter["y"] == 0
+    assert enter["w"] == pytest.approx(42 / 18)
+    assert enter["h"] == pytest.approx(37 / 18)
+    assert enter["outline"][0] == [0, pytest.approx(19 / 18)]
+
+
+def test_importer_accepts_gap_before_shape_name(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "gap_shape" {
+            shape "NORM" { { [18,18] } };
+            shape "WIDE" { { [42,18] } };
+            key.shape = "NORM";
+            section "Alpha" {
+                row { keys { <AD11>, { <RTRN>, 1, "WIDE" } }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<AD11> = 35;\n<RTRN> = 36;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "gap_shape", model_id="gap_shape")
+    enter = next(key for key in model["keys"] if key["id"] == "RTRN")
+
+    assert enter["x"] == pytest.approx((18 + 1) / 18)
+    assert enter["w"] == pytest.approx(42 / 18)
+
+
 def test_importer_rejects_cyclic_geometry_includes(tmp_path):
     (tmp_path / "a").write_text('xkb_geometry "a" { include "b(b)" };')
     (tmp_path / "b").write_text('xkb_geometry "b" { include "a(a)" };')
