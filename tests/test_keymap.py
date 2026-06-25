@@ -69,6 +69,76 @@ keycode  16 = +0x0b71 +0x0b51
     ]
 
 
+def test_keymap_data_exposes_unicode_tokens_as_characters():
+    symbolic = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = cyrillic_small_letter_short_i
+"""
+    )
+    numeric = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = U+0439
+"""
+    )
+
+    data = keymap_data(symbolic, numeric, keymap_id="i386/qwerty/ru", source="i386/qwerty/ru.map")
+
+    assert data["keys"][0]["entries"][0]["unicode"] == "й"
+
+
+def test_keymap_data_decodes_8bit_values_with_charset():
+    symbolic = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = cyrillic_small_letter_short_i
+"""
+    )
+    numeric = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = 0x00e9
+"""
+    )
+
+    data = keymap_data(
+        symbolic,
+        numeric,
+        keymap_id="i386/qwerty/ru",
+        source="i386/qwerty/ru.map",
+        charset="cp1251",
+    )
+
+    assert data["charset"] == "cp1251"
+    assert data["keys"][0]["entries"][0]["unicode"] == "й"
+
+
+def test_keymap_data_reinterprets_byte_sized_unicode_values_with_charset():
+    symbolic = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = eacute
+"""
+    )
+    numeric = parse_keymap_dump(
+        """\
+keymaps 0
+keycode  16 = U+00e9
+"""
+    )
+
+    data = keymap_data(
+        symbolic,
+        numeric,
+        keymap_id="i386/qwerty/ruwin_alt-CP1251",
+        source="i386/qwerty/ruwin_alt-CP1251.map",
+        charset="cp1251",
+    )
+
+    assert data["keys"][0]["entries"][0]["unicode"] == "й"
+
+
 def test_keymap_data_rejects_mismatched_dumps():
     symbolic = parse_keymap_dump("keymaps 0\nkeycode  16 = +q\n")
     numeric = parse_keymap_dump("keymaps 1\nkeycode  16 = +0x0b71\n")

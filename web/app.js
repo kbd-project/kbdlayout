@@ -472,7 +472,7 @@ function lockModifierForSymbol(symbol) {
 }
 
 function displayEntry(entry) {
-  return unicodeCharacter(entry) ?? compactSymbol(entry.symbol);
+  return entry.unicode ?? unicodeCharacter(entry) ?? compactSymbol(entry.symbol);
 }
 
 function unicodeCharacter(entry) {

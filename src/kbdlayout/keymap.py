@@ -13,6 +13,19 @@ from typing import Any, Iterable
 
 
 KEYCODE_RE = re.compile(r"^keycode\s+(\d+)\s+=\s+(.*)$")
+CHARSET_RE = re.compile(r'^\s*charset\s+"([^"]+)"', re.MULTILINE)
+CHARSET_HINTS = (
+    ("cp1251", "cp1251"),
+    ("cp850", "cp850"),
+    ("cp855", "cp855"),
+    ("cp437", "cp437"),
+    ("koi8-r", "koi8-r"),
+)
+CHARSET_TEXT_HINTS = (
+    ("cp1251", "cp1251"),
+    ("cp850", "cp850"),
+    ("cp855", "cp855"),
+)
 
 
 @dataclass(frozen=True)
@@ -39,10 +52,18 @@ def import_kbd_keymap(
         numeric,
         keymap_id=_keymap_id(keymap, Path(keymaps_root)),
         source=_source_path(keymap, Path(keymaps_root)),
+        charset=_detect_charset(keymap),
     )
 
 
-def keymap_data(symbolic: KeymapDump, numeric: KeymapDump, *, keymap_id: str, source: str) -> dict[str, Any]:
+def keymap_data(
+    symbolic: KeymapDump,
+    numeric: KeymapDump,
+    *,
+    keymap_id: str,
+    source: str,
+    charset: str | None = None,
+) -> dict[str, Any]:
     """Pair symbolic and numeric dumps into the public keymap document."""
     if symbolic.keymaps != numeric.keymaps:
         raise ValueError(f"keymap headers differ: {symbolic.keymaps!r} != {numeric.keymaps!r}")
@@ -61,19 +82,22 @@ def keymap_data(symbolic: KeymapDump, numeric: KeymapDump, *, keymap_id: str, so
             {
                 "kbd_keycode": kbd_keycode,
                 "entries": [
-                    _entry(keymap, symbol, numeric_token)
+                    _entry(keymap, symbol, numeric_token, charset)
                     for keymap, symbol, numeric_token in zip(symbolic.keymaps, symbols, numeric_tokens, strict=True)
                 ],
             }
         )
 
-    return {
+    data = {
         "version": 1,
         "id": keymap_id,
         "source": source,
         "keymaps": list(symbolic.keymaps),
         "keys": keys,
     }
+    if charset is not None:
+        data["charset"] = charset
+    return data
 
 
 def parse_keymap_dump(text: str) -> KeymapDump:
@@ -218,14 +242,19 @@ def _run_loadkeys(loadkeys_path: str | Path, keymap_path: Path, *, tkeymap: int,
     return stdout
 
 
-def _entry(keymap: int, symbol: str, numeric_token: str) -> dict[str, Any]:
-    return {
+def _entry(keymap: int, symbol: str, numeric_token: str, charset: str | None) -> dict[str, Any]:
+    numeric_value = _numeric_value(numeric_token)
+    entry = {
         "keymap": keymap,
         "symbol": symbol,
         "numeric": numeric_token,
-        "numeric_value": _numeric_value(numeric_token),
+        "numeric_value": numeric_value,
         "has_plus_prefix": symbol.startswith("+") or numeric_token.startswith("+"),
     }
+    unicode = _unicode_value(numeric_token, numeric_value, charset)
+    if unicode is not None:
+        entry["unicode"] = unicode
+    return entry
 
 
 def _numeric_value(token: str) -> int:
@@ -233,6 +262,26 @@ def _numeric_value(token: str) -> int:
     if token.startswith("U+"):
         return int(token[2:], 16)
     return int(token, 0)
+
+
+def _unicode_value(token: str, value: int, charset: str | None) -> str | None:
+    token = token.removeprefix("+")
+    if token.startswith("U+"):
+        if charset is not None and 0x80 <= value <= 0xFF:
+            decoded = _decode_8bit_value(value, charset)
+            if decoded is not None:
+                return decoded
+        return chr(value)
+    if charset is None or not 0x80 <= value <= 0xFF:
+        return None
+    return _decode_8bit_value(value, charset)
+
+
+def _decode_8bit_value(value: int, charset: str) -> str | None:
+    try:
+        return bytes([value]).decode(charset)
+    except (LookupError, UnicodeError):
+        return None
 
 
 def _expand_keymaps(value: str) -> tuple[int, ...]:
@@ -264,6 +313,31 @@ def _keymap_group(keymap_id: str) -> str:
     if len(parts) >= 3:
         return parts[1]
     return "Other"
+
+
+def _detect_charset(path: Path) -> str | None:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    match = CHARSET_RE.search(text)
+    if match is not None:
+        return _normalize_charset(match.group(1))
+
+    name = path.name.lower()
+    for hint, charset in CHARSET_HINTS:
+        if hint in name:
+            return charset
+    text_lower = text.lower()
+    for hint, charset in CHARSET_TEXT_HINTS:
+        if hint in text_lower:
+            return charset
+    return None
+
+
+def _normalize_charset(charset: str) -> str:
+    charset = charset.lower().replace("_", "-")
+    match = re.fullmatch(r"cp-([0-9]+)", charset)
+    if match is not None:
+        return f"cp{match.group(1)}"
+    return charset
 
 
 def _relative_path(path: Path, root: Path) -> str:
