@@ -39,6 +39,25 @@ def test_render_svg_writes_key_ids_in_factory_legends(generated_models):
     assert float(esc.attrib["y"]) < model.key("ESC").y + model.key("ESC").h / 2
 
 
+def test_render_svg_uses_imported_key_colors(generated_models):
+    model = load_model(generated_models["pc-104-ansi"])
+    root = ET.fromstring(render_svg(model))
+
+    esc = root.find(".//svg:g[@data-key-id='ESC']/svg:rect", SVG_NS)
+    assert esc is not None
+    assert esc.attrib["style"] == "--key-fill: #555"
+
+    space = root.find(".//svg:g[@data-key-id='SPCE']/svg:rect", SVG_NS)
+    assert space is not None
+    assert space.attrib["style"] == "--key-fill: #f6f6f6"
+
+    labels = root.findall("svg:g[@id='factory-legends']/svg:text", SVG_NS)
+    esc_label = next(label for label in labels if label.text == "ESC")
+    assert esc_label.attrib["style"] == "--key-id-fill: #eee"
+    space_label = next(label for label in labels if label.text == "SPCE")
+    assert space_label.attrib["style"] == "--key-id-fill: #555"
+
+
 @pytest.mark.parametrize("option", ["--scale=0", "--padding=-1"])
 def test_cli_rejects_invalid_render_options(option, generated_models):
     result = subprocess.run(

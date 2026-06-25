@@ -85,7 +85,13 @@ def _parse_geometry(path: Path, name: str, stack: set[tuple[Path, str]] | None =
 
 
 def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple[Path, str]]) -> dict[str, Any]:
-    defaults: dict[str, Any] = {"section.left": 0.0, "row.left": 0.0, "key.shape": None, "key.gap": 0.0}
+    defaults: dict[str, Any] = {
+        "section.left": 0.0,
+        "row.left": 0.0,
+        "key.shape": None,
+        "key.gap": 0.0,
+        "key.color": None,
+    }
     shapes: dict[str, Shape] = {}
     sections: list[dict[str, Any]] = []
     index = 0
@@ -157,6 +163,7 @@ def _parse_row(tokens: list[str], section_defaults: dict[str, Any]) -> dict[str,
         "top": 0.0,
         "key.shape": section_defaults["key.shape"],
         "key.gap": section_defaults["key.gap"],
+        "key.color": section_defaults.get("key.color"),
     }
     keys: list[dict[str, Any]] = []
     index = 0
@@ -178,7 +185,14 @@ def _parse_keys(tokens: list[str], defaults: dict[str, Any]) -> list[dict[str, A
     while index < len(tokens):
         token = tokens[index]
         if token.startswith("<"):
-            keys.append({"name": token[1:-1], "shape": defaults["key.shape"], "gap": defaults["key.gap"]})
+            keys.append(
+                {
+                    "name": token[1:-1],
+                    "shape": defaults["key.shape"],
+                    "gap": defaults["key.gap"],
+                    "color": defaults.get("key.color"),
+                }
+            )
             index += 1
         elif token == "{":
             body, index = _block(tokens, index)
@@ -197,6 +211,7 @@ def _parse_key_entry(tokens: list[str], defaults: dict[str, Any]) -> dict[str, A
     name = tokens[key_index][1:-1]
     shape = defaults["key.shape"]
     gap = defaults["key.gap"]
+    color = defaults.get("key.color")
     index = key_index + 1
     while index < len(tokens):
         token = tokens[index]
@@ -216,6 +231,14 @@ def _parse_key_entry(tokens: list[str], defaults: dict[str, Any]) -> dict[str, A
             gap = float(tokens[index + 4])
             index += 5
             continue
+        if token == "color" and index + 2 < len(tokens) and tokens[index + 1] == "=":
+            color = _string(tokens[index + 2])
+            index += 3
+            continue
+        if tokens[index:index + 4] == ["key", ".", "color", "="] and index + 4 < len(tokens):
+            color = _string(tokens[index + 4])
+            index += 5
+            continue
         if token == "=":
             index += 2
             continue
@@ -224,7 +247,7 @@ def _parse_key_entry(tokens: list[str], defaults: dict[str, Any]) -> dict[str, A
         elif _is_number(token):
             gap = float(token)
         index += 1
-    return {"name": name, "shape": shape, "gap": gap}
+    return {"name": name, "shape": shape, "gap": gap, "color": color}
 
 
 def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -256,6 +279,8 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
                     "w": _units(shape.width),
                     "h": _units(shape.height),
                 }
+                if entry["color"] is not None:
+                    key["color"] = entry["color"]
                 if shape.outline is not None:
                     key["outline"] = [[_units(x), _units(y)] for x, y in shape.outline]
                 keys.append(key)

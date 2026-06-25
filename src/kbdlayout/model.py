@@ -45,6 +45,7 @@ class Key:
     y: float
     w: float
     h: float
+    color: str | None = None
     outline: tuple[Point, ...] | None = None
     rotation: Rotation | None = None
 
@@ -168,7 +169,7 @@ def load_model(path: str | Path) -> Model:
 
 def _key(value: Any, path: str) -> Key:
     _expect_object(value, path)
-    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "rotation", "outline", "extensions"}, path)
+    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "color", "rotation", "outline", "extensions"}, path)
     key = Key(
         id=_id(value.get("id"), f"{path}.id"),
         kbd_keycode=_kbd_keycode(value.get("kbd_keycode"), f"{path}.kbd_keycode"),
@@ -176,6 +177,7 @@ def _key(value: Any, path: str) -> Key:
         y=_number(value.get("y"), f"{path}.y"),
         w=_number(value.get("w"), f"{path}.w"),
         h=_number(value.get("h"), f"{path}.h"),
+        color=_color(value.get("color"), f"{path}.color") if "color" in value else None,
         outline=_outline(value.get("outline"), path) if "outline" in value else None,
         rotation=_rotation(value.get("rotation"), path) if "rotation" in value else None,
     )
@@ -217,6 +219,12 @@ def _point(value: Any, path: str) -> Point:
     if len(values) != 2:
         raise ModelError(f"{path} must contain exactly two coordinates")
     return (_number(values[0], f"{path}[0]"), _number(values[1], f"{path}[1]"))
+
+
+def _color(value: Any, path: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ModelError(f"{path} must be a non-empty string")
+    return value
 
 
 def _id(value: Any, path: str) -> str:

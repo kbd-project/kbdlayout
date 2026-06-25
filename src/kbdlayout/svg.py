@@ -9,6 +9,20 @@ from .model import Key, Model
 
 SVG_NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", SVG_NS)
+XKB_COLORS = {
+    "black": ("#111", "#eee"),
+    "blue": ("#4f7ec8", "#fff"),
+    "grey": ("#d8d8d8", "#555"),
+    "grey10": ("#1a1a1a", "#eee"),
+    "grey20": ("#555", "#eee"),
+    "grey30": ("#777", "#fff"),
+    "grey40": ("#999", "#222"),
+    "grey60": ("#c4c4c4", "#555"),
+    "grey70": ("#d6d6d6", "#555"),
+    "grey80": ("#e6e6e6", "#555"),
+    "red": ("#c94f4f", "#fff"),
+    "white": ("#f6f6f6", "#555"),
+}
 
 
 def render_svg(model: Model, *, scale: float = 60, padding: float = 0.1) -> str:
@@ -34,8 +48,8 @@ def render_svg(model: Model, *, scale: float = 60, padding: float = 0.1) -> str:
 
     style = ET.SubElement(svg, _tag("style"))
     style.text = (
-        ".key { fill: #eee; stroke: #777; stroke-width: 0.03; }"
-        ".key-id { fill: #555; font: 0.16px sans-serif; pointer-events: none; }"
+        ".key { fill: var(--key-fill, #eee); stroke: #777; stroke-width: 0.03; }"
+        ".key-id { fill: var(--key-id-fill, #555); font: 0.16px sans-serif; pointer-events: none; }"
     )
 
     geometry = ET.SubElement(svg, _tag("g"), {"id": "keyboard-geometry"})
@@ -63,21 +77,25 @@ def _render_key(parent: ET.Element, key: Key) -> None:
     title = ET.SubElement(key_group, _tag("title"))
     title.text = f"{key.id}\nkbd_keycode: {'null' if key.kbd_keycode is None else key.kbd_keycode}"
     if key.outline is None and key.rotation is None:
+        attributes = {
+            "class": "key",
+            "x": _number(key.x),
+            "y": _number(key.y),
+            "width": _number(key.w),
+            "height": _number(key.h),
+        }
+        attributes.update(_key_style(key))
         ET.SubElement(
             key_group,
             _tag("rect"),
-            {
-                "class": "key",
-                "x": _number(key.x),
-                "y": _number(key.y),
-                "width": _number(key.w),
-                "height": _number(key.h),
-            },
+            attributes,
         )
         return
 
     points = " ".join(f"{_number(x)},{_number(y)}" for x, y in key.points())
-    ET.SubElement(key_group, _tag("polygon"), {"class": "key", "points": points})
+    attributes = {"class": "key", "points": points}
+    attributes.update(_key_style(key))
+    ET.SubElement(key_group, _tag("polygon"), attributes)
 
 
 def _render_key_id(parent: ET.Element, key: Key) -> None:
@@ -88,6 +106,7 @@ def _render_key_id(parent: ET.Element, key: Key) -> None:
         "text-anchor": "end",
         "dominant-baseline": "hanging",
     }
+    attributes.update(_key_id_style(key))
     if key.rotation is not None:
         angle = _number(key.rotation.angle)
         origin_x = _number(key.rotation.origin[0])
@@ -100,6 +119,24 @@ def _render_key_id(parent: ET.Element, key: Key) -> None:
 
 def _tag(name: str) -> str:
     return f"{{{SVG_NS}}}{name}"
+
+
+def _key_style(key: Key) -> dict[str, str]:
+    if key.color is None:
+        return {}
+    colors = XKB_COLORS.get(key.color)
+    if colors is None:
+        return {}
+    return {"style": f"--key-fill: {colors[0]}"}
+
+
+def _key_id_style(key: Key) -> dict[str, str]:
+    if key.color is None:
+        return {}
+    colors = XKB_COLORS.get(key.color)
+    if colors is None:
+        return {}
+    return {"style": f"--key-id-fill: {colors[1]}"}
 
 
 def _number(value: float) -> str:

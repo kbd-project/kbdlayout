@@ -107,6 +107,29 @@ def test_importer_accepts_gap_before_shape_name(tmp_path):
     assert enter["w"] == pytest.approx(42 / 18)
 
 
+def test_importer_preserves_key_colors(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "colors" {
+            shape "NORM" { { [18,18] } };
+            key.shape = "NORM";
+            key.color = "grey20";
+            section "Alpha" {
+                row {
+                    keys { <ESC>, { <SPCE>, color="white" } };
+                };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<ESC> = 9;\n<SPCE> = 65;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "colors", model_id="colors")
+
+    assert next(key for key in model["keys"] if key["id"] == "ESC")["color"] == "grey20"
+    assert next(key for key in model["keys"] if key["id"] == "SPCE")["color"] == "white"
+
+
 def test_importer_rejects_cyclic_geometry_includes(tmp_path):
     (tmp_path / "a").write_text('xkb_geometry "a" { include "b(b)" };')
     (tmp_path / "b").write_text('xkb_geometry "b" { include "a(a)" };')

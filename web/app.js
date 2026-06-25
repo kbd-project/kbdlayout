@@ -27,6 +27,21 @@ const modifierKeyIds = new Map([
   ["CapsShift", "CAPS"],
 ]);
 
+const xkbColors = new Map([
+  ["black", {legend: "#eee", stroke: "#111"}],
+  ["blue", {legend: "#fff", stroke: "#2f4f8f"}],
+  ["grey", {legend: "#555", stroke: "#fff"}],
+  ["grey10", {legend: "#eee", stroke: "#111"}],
+  ["grey20", {legend: "#eee", stroke: "#111"}],
+  ["grey30", {legend: "#fff", stroke: "#222"}],
+  ["grey40", {legend: "#222", stroke: "#eee"}],
+  ["grey60", {legend: "#555", stroke: "#fff"}],
+  ["grey70", {legend: "#555", stroke: "#fff"}],
+  ["grey80", {legend: "#555", stroke: "#fff"}],
+  ["red", {legend: "#fff", stroke: "#7f2f2f"}],
+  ["white", {legend: "#111", stroke: "#fff"}],
+]);
+
 const symbolAliases = new Map([
   ["space", "␠"],
   ["Tab", "⇥"],
@@ -409,6 +424,7 @@ function renderKeymapLegends() {
     label.setAttribute("y", formatSvgNumber(key.y + key.h / 2));
     label.setAttribute("font-size", formatSvgNumber(legendFontSize(key, entry)));
     label.setAttribute("dominant-baseline", "middle");
+    label.setAttribute("style", keymapLegendStyle(key));
     label.append(svgTitle(entry.symbol));
     label.append(document.createTextNode(displayEntry(entry)));
     if (key.rotation) {
@@ -417,6 +433,14 @@ function renderKeymapLegends() {
     }
     overlay.append(label);
   }
+}
+
+function keymapLegendStyle(key) {
+  const colors = xkbColors.get(key.color);
+  if (!colors) {
+    return "";
+  }
+  return `--keymap-legend-fill: ${colors.legend}; --keymap-legend-stroke: ${colors.stroke}`;
 }
 
 function legendForKey(key) {
