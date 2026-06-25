@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>kbdlayout viewer</title>
+    <link rel="stylesheet" href="app.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="toolbar">
+        <label>
+          Model
+          <select id="model-select"></select>
+        </label>
+        <span id="status" role="status"></span>
+      </header>
+
+      <section class="viewer" aria-label="Keyboard model">
+        <div id="keyboard"></div>
+      </section>
+
+      <aside class="inspector" aria-label="Selected key">
+        <h1>Selected key</h1>
+        <dl>
+          <dt>id</dt>
+          <dd id="key-id">-</dd>
+          <dt>kbd_keycode</dt>
+          <dd id="keycode">-</dd>
+          <dt>position</dt>
+          <dd id="key-position">-</dd>
+          <dt>size</dt>
+          <dd id="key-size">-</dd>
+        </dl>
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

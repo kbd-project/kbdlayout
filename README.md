@@ -32,6 +32,8 @@ python3 src/kbd-layout.py models/fixtures/pc-104-ansi.json > keyboard.svg
 
 `make render` regenerates every catalog model and writes SVG next to each JSON
 file under `models/fixtures/`.
+`make models` also writes `models/fixtures/catalog.json`, which is the public
+static catalog consumed by the browser viewer.
 
 The PC fixtures are imported from the `pc104` and `pc105` XKB geometries in
 the local `xkeyboard-config` checkout. Key names are mapped through its evdev
@@ -44,6 +46,28 @@ make models
 Generated JSON and SVG files in `models/fixtures/` are not tracked. The model
 catalog in `models/catalog.tsv` defines every geometry imported by `make models`
 and rendered by `make render`.
+
+## Browser viewer
+
+The `web/` directory is a static read-only viewer for generated keyboard
+models. It reads `models/fixtures/catalog.json`, then loads the selected model
+JSON and SVG. Clicking a key shows its stable key ID, `kbd_keycode`, position,
+and size.
+
+Generate the static data before opening the viewer:
+
+```sh
+make render
+```
+
+The viewer does not require a project backend. Use any static file server for
+local preview or publishing. For a local preview from the project root:
+
+```sh
+make server
+```
+
+Then open `http://localhost:8000/web/index.html`.
 
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local
