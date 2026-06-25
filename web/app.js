@@ -1,7 +1,7 @@
 "use strict";
 
-const catalogUrl = "../models/fixtures/catalog.json";
-const keymapCatalogUrl = "../keymaps/fixtures/catalog.json";
+const catalogUrl = "data/models/catalog.json";
+const keymapCatalogUrl = "data/keymaps/catalog.json";
 
 const modifierWeights = new Map([
   ["Shift", 1],

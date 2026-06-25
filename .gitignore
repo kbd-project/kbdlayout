@@ -7,6 +7,11 @@
 /external/keyboard-layout-editor/
 /external/xkbprint-kle/
 /external/xkeyboard-config/
+
+# Generated static data.
+/web/data/
+
+# Legacy generated output locations.
 /models/fixtures/*.json
 /models/fixtures/*.svg
 /keymaps/fixtures/

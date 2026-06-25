@@ -6,15 +6,16 @@ XKB_GEOMETRY_DIR = external/xkeyboard-config/geometry
 MODEL_CATALOG = models/catalog.tsv
 KEYMAP_SOURCE_ROOT ?= external/kbd/data/keymaps/i386
 KEYMAP_ROOT ?= external/kbd/data/keymaps
-KEYMAP_OUTPUT_ROOT ?= keymaps/fixtures
+MODEL_OUTPUT_ROOT ?= web/data/models
+KEYMAP_OUTPUT_ROOT ?= web/data/keymaps
 SERVER_PORT ?= 8000
 
 models:
-	@mkdir -p models/fixtures
-	@$(CATALOG_GENERATOR) $(MODEL_CATALOG) models/fixtures/catalog.json
+	@mkdir -p $(MODEL_OUTPUT_ROOT)
+	@$(CATALOG_GENERATOR) $(MODEL_CATALOG) $(MODEL_OUTPUT_ROOT)/catalog.json
 	@while IFS='	' read -r geometry_file geometry model_id name; do \
 		case "$$geometry_file" in \#*|'') continue ;; esac; \
-		$(XKB_IMPORTER) "$$geometry" "models/fixtures/$$model_id.json" \
+		$(XKB_IMPORTER) "$$geometry" "$(MODEL_OUTPUT_ROOT)/$$model_id.json" \
 			--model-id "$$model_id" --name "$$name" \
 			--geometry-file "$(XKB_GEOMETRY_DIR)/$$geometry_file"; \
 	done < $(MODEL_CATALOG)
@@ -22,7 +23,7 @@ models:
 render: models
 	@while IFS='	' read -r geometry_file geometry model_id name; do \
 		case "$$geometry_file" in \#*|'') continue ;; esac; \
-		$(RENDERER) "models/fixtures/$$model_id.json" > "models/fixtures/$$model_id.svg"; \
+		$(RENDERER) "$(MODEL_OUTPUT_ROOT)/$$model_id.json" > "$(MODEL_OUTPUT_ROOT)/$$model_id.svg"; \
 	done < $(MODEL_CATALOG)
 
 keymaps:
@@ -30,6 +31,6 @@ keymaps:
 	$(KEYMAP_GENERATOR) $(KEYMAP_SOURCE_ROOT) $(KEYMAP_OUTPUT_ROOT) --keymaps-root $(KEYMAP_ROOT)
 
 server: render keymaps
-	python3 -m http.server $(SERVER_PORT)
+	python3 -m http.server $(SERVER_PORT) --directory web
 
 .PHONY: models render keymaps server
