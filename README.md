@@ -17,12 +17,7 @@ stable key identifiers, and an explicit Linux keycode per key. Keyboard Layout
 Editor (KLE) JSON and XKB geometry will be import/export adapters, rather than
 the canonical representation.
 
-## Legacy renderer
-
-`external/kbd-layout.py` is the original standalone prototype. It renders a
-fixed ANSI or ISO PC keyboard from Linux console keymap files and is retained as
-reference while the new model-based renderer is built. `src/kbd-layout.py` is
-the new command-line entry point.
+## SVG renderer
 
 Render a model to SVG with:
 
