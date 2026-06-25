@@ -69,6 +69,20 @@ make server
 
 Then open `http://localhost:8000/web/index.html`.
 
+## kbd keymaps
+
+Import one Linux `kbd` keymap through the local `loadkeys` binary:
+
+```sh
+python3 src/import-kbd-keymap.py \
+  external/kbd/data/keymaps/i386/qwerty/us.map \
+  /tmp/us.json
+```
+
+The importer runs `loadkeys -u --tkeymap=4` twice: once for symbolic output and
+once with `LK_DUMP_NUMERIC=1` for numeric output. The generated JSON preserves
+both representations for every `kbd_keycode` and keymap column.
+
 The directories `external/kbd`, `external/libxkbcommon`,
 `external/keyboard-layout-editor`, and `external/xkbprint-kle` are local
 reference source checkouts and are intentionally not tracked by this project.
