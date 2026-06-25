@@ -60,6 +60,8 @@ def _render_key(parent: ET.Element, key: Key) -> None:
             "data-kbd-keycode": "" if key.kbd_keycode is None else str(key.kbd_keycode),
         },
     )
+    title = ET.SubElement(key_group, _tag("title"))
+    title.text = f"{key.id}\nkbd_keycode: {'null' if key.kbd_keycode is None else key.kbd_keycode}"
     if key.outline is None and key.rotation is None:
         ET.SubElement(
             key_group,

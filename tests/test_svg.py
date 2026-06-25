@@ -19,6 +19,7 @@ def test_render_svg_preserves_key_identity_and_outline(generated_models):
     enter = root.find(".//svg:g[@data-key-id='RTRN']", SVG_NS)
     assert enter is not None
     assert enter.attrib["data-kbd-keycode"] == "28"
+    assert enter.find("svg:title", SVG_NS).text == "RTRN\nkbd_keycode: 28"
     assert enter.find("svg:polygon", SVG_NS) is not None
     assert root.find("svg:g[@id='factory-legends']", SVG_NS) is not None
     assert root.find("svg:g[@id='overlay-legends']", SVG_NS) is not None
