@@ -68,6 +68,50 @@ def test_render_svg_uses_imported_corner_radius(generated_models):
     assert esc.attrib["ry"] == "0.0555555555556"
 
 
+def test_render_svg_uses_geometry_bounds_as_frame(generated_models):
+    model = load_model(generated_models["pc-104-ansi"])
+    root = ET.fromstring(render_svg(model))
+
+    frame = root.find("svg:g[@id='keyboard-geometry']/svg:g[@id='keyboard-decorations']/svg:rect", SVG_NS)
+    assert frame is not None
+    assert frame.attrib["class"] == "keyboard-frame"
+    assert frame.attrib["x"] == "0"
+    assert frame.attrib["y"] == "0"
+    assert frame.attrib["width"] == "26.1111111111"
+    assert frame.attrib["height"] == "10"
+
+
+def test_render_svg_uses_outline_doodads():
+    model = Model.from_data(
+        {
+            "version": 1,
+            "id": "decorated",
+            "unit": "u",
+            "bounds": {"x": 0, "y": 0, "w": 4, "h": 2},
+            "doodads": [
+                {
+                    "type": "outline",
+                    "id": "Edges",
+                    "x": 0,
+                    "y": 0,
+                    "w": 4,
+                    "h": 2,
+                    "corner_radius": 0.2,
+                }
+            ],
+            "keys": [{"id": "KEY", "kbd_keycode": 1, "x": 1, "y": 0.5, "w": 1, "h": 1}],
+        }
+    )
+
+    root = ET.fromstring(render_svg(model))
+    frame = root.find("svg:g[@id='keyboard-geometry']/svg:g[@id='keyboard-decorations']/svg:rect", SVG_NS)
+    assert frame is not None
+    assert frame.attrib["id"] == "doodad-Edges"
+    assert frame.attrib["rx"] == "0.2"
+    assert frame.attrib["ry"] == "0.2"
+    assert root.find(".//svg:g[@data-key-id='KEY']", SVG_NS) is not None
+
+
 @pytest.mark.parametrize("option", ["--scale=0", "--padding=-1"])
 def test_cli_rejects_invalid_render_options(option, generated_models):
     result = subprocess.run(

@@ -36,6 +36,39 @@ class Rotation:
 
 
 @dataclass(frozen=True)
+class Doodad:
+    """One decorative geometry element that is not a physical key."""
+
+    type: str
+    id: str
+    x: float
+    y: float
+    w: float
+    h: float
+    color: str | None = None
+    corner_radius: float | None = None
+    outline: tuple[Point, ...] | None = None
+
+    def points(self) -> tuple[Point, ...]:
+        """Return the doodad outline in global coordinates."""
+        local_points = self.outline or (
+            (0.0, 0.0),
+            (self.w, 0.0),
+            (self.w, self.h),
+            (0.0, self.h),
+        )
+        return tuple((self.x + x, self.y + y) for x, y in local_points)
+
+    def bounds(self) -> Bounds:
+        """Return the bounds of the doodad outline."""
+        points = self.points()
+        xs, ys = zip(*points, strict=True)
+        x = min(xs)
+        y = min(ys)
+        return Bounds(x=x, y=y, w=max(xs) - x, h=max(ys) - y)
+
+
+@dataclass(frozen=True)
 class Key:
     """One physical key and its optional mapping to a kernel keycode."""
 
@@ -98,13 +131,15 @@ class Model:
     id: str
     keys: tuple[Key, ...]
     name: str | None = None
+    bounds_hint: Bounds | None = None
+    doodads: tuple[Doodad, ...] = ()
     groups: tuple[Group, ...] = ()
 
     @classmethod
     def from_data(cls, data: Mapping[str, Any]) -> Model:
         """Build a model from decoded canonical physical-model JSON."""
         _expect_object(data, "model")
-        _reject_unknown(data, {"version", "id", "name", "unit", "keys", "groups", "extensions"}, "model")
+        _reject_unknown(data, {"version", "id", "name", "unit", "bounds", "doodads", "keys", "groups", "extensions"}, "model")
         if data.get("version") != 1:
             raise ModelError("model.version must be 1")
         if data.get("unit") != "u":
@@ -114,6 +149,7 @@ class Model:
         name = data.get("name")
         if name is not None and (not isinstance(name, str) or not name):
             raise ModelError("model.name must be a non-empty string")
+        bounds_hint = _bounds(data.get("bounds"), "model.bounds") if "bounds" in data else None
 
         raw_keys = _list(data.get("keys"), "model.keys")
         if not raw_keys:
@@ -121,6 +157,10 @@ class Model:
         keys = tuple(_key(raw_key, f"model.keys[{index}]") for index, raw_key in enumerate(raw_keys))
         _unique((key.id for key in keys), "key ID")
         _unique((key.kbd_keycode for key in keys if key.kbd_keycode is not None), "kbd keycode")
+
+        raw_doodads = _list(data.get("doodads", []), "model.doodads")
+        doodads = tuple(_doodad(raw_doodad, f"model.doodads[{index}]") for index, raw_doodad in enumerate(raw_doodads))
+        _unique((doodad.id for doodad in doodads), "doodad ID")
 
         raw_groups = _list(data.get("groups", []), "model.groups")
         groups = tuple(_group(raw_group, f"model.groups[{index}]") for index, raw_group in enumerate(raw_groups))
@@ -131,7 +171,7 @@ class Model:
             if unknown:
                 raise ModelError(f"group {group.id!r} references unknown keys: {sorted(unknown)!r}")
 
-        return cls(id=model_id, name=name, keys=keys, groups=groups)
+        return cls(id=model_id, name=name, bounds_hint=bounds_hint, doodads=doodads, keys=keys, groups=groups)
 
     def key(self, key_id: str) -> Key:
         """Look up a physical key by its stable identifier."""
@@ -149,11 +189,16 @@ class Model:
 
     def bounds(self) -> Bounds:
         """Return the bounding box that encloses all physical keys."""
-        key_bounds = tuple(key.bounds() for key in self.keys)
+        key_bounds = tuple(key.bounds() for key in self.keys) + tuple(doodad.bounds() for doodad in self.doodads)
         x = min(bounds.x for bounds in key_bounds)
         y = min(bounds.y for bounds in key_bounds)
         right = max(bounds.x + bounds.w for bounds in key_bounds)
         bottom = max(bounds.y + bounds.h for bounds in key_bounds)
+        if self.bounds_hint is not None:
+            x = min(x, self.bounds_hint.x)
+            y = min(y, self.bounds_hint.y)
+            right = max(right, self.bounds_hint.x + self.bounds_hint.w)
+            bottom = max(bottom, self.bounds_hint.y + self.bounds_hint.h)
         return Bounds(x=x, y=y, w=right - x, h=bottom - y)
 
 
@@ -192,6 +237,48 @@ def _key(value: Any, path: str) -> Key:
             if not 0 <= x <= key.w or not 0 <= y <= key.h:
                 raise ModelError(f"{path}.outline point ({x}, {y}) is outside the key bounds")
     return key
+
+
+def _doodad(value: Any, path: str) -> Doodad:
+    _expect_object(value, path)
+    _reject_unknown(value, {"type", "id", "x", "y", "w", "h", "color", "corner_radius", "outline"}, path)
+    doodad_type = value.get("type")
+    if doodad_type != "outline":
+        raise ModelError(f'{path}.type must be "outline"')
+    doodad = Doodad(
+        type=doodad_type,
+        id=_id(value.get("id"), f"{path}.id"),
+        x=_number(value.get("x"), f"{path}.x"),
+        y=_number(value.get("y"), f"{path}.y"),
+        w=_number(value.get("w"), f"{path}.w"),
+        h=_number(value.get("h"), f"{path}.h"),
+        color=_color(value.get("color"), f"{path}.color") if "color" in value else None,
+        corner_radius=_number(value.get("corner_radius"), f"{path}.corner_radius") if "corner_radius" in value else None,
+        outline=_outline(value.get("outline"), path) if "outline" in value else None,
+    )
+    if doodad.w <= 0 or doodad.h <= 0:
+        raise ModelError(f"{path}.w and {path}.h must be greater than zero")
+    if doodad.corner_radius is not None and doodad.corner_radius < 0:
+        raise ModelError(f"{path}.corner_radius must not be negative")
+    if doodad.outline is not None:
+        for x, y in doodad.outline:
+            if not 0 <= x <= doodad.w or not 0 <= y <= doodad.h:
+                raise ModelError(f"{path}.outline point ({x}, {y}) is outside the doodad bounds")
+    return doodad
+
+
+def _bounds(value: Any, path: str) -> Bounds:
+    _expect_object(value, path)
+    _reject_unknown(value, {"x", "y", "w", "h"}, path)
+    bounds = Bounds(
+        x=_number(value.get("x"), f"{path}.x"),
+        y=_number(value.get("y"), f"{path}.y"),
+        w=_number(value.get("w"), f"{path}.w"),
+        h=_number(value.get("h"), f"{path}.h"),
+    )
+    if bounds.w <= 0 or bounds.h <= 0:
+        raise ModelError(f"{path}.w and {path}.h must be greater than zero")
+    return bounds
 
 
 def _group(value: Any, path: str) -> Group:

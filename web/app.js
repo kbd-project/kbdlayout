@@ -565,8 +565,9 @@ function legendFontSize(key, entry) {
   const maxSize = 0.28;
   const minSize = 0.12;
   const maxWidth = key.w * 0.8;
-  const estimatedSize = maxWidth / Math.max(compact.length * 0.55, 1);
-  return Math.max(minSize, Math.min(maxSize, estimatedSize));
+  const maxHeight = key.h * 0.45;
+  const widthSize = maxWidth / Math.max(compact.length * 0.55, 1);
+  return Math.max(minSize, Math.min(maxSize, maxHeight, widthSize));
 }
 
 function svgTitle(text) {

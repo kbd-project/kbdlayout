@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from xml.etree import ElementTree as ET
 
-from .model import Key, Model
+from .model import Bounds, Doodad, Key, Model
 
 
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -48,11 +48,14 @@ def render_svg(model: Model, *, scale: float = 60, padding: float = 0.1) -> str:
 
     style = ET.SubElement(svg, _tag("style"))
     style.text = (
+        ".keyboard-frame { fill: var(--doodad-fill, #ddd); stroke: #aaa; stroke-width: 0.03; }"
         ".key { fill: var(--key-fill, #eee); stroke: #777; stroke-width: 0.03; }"
         ".key-id { fill: var(--key-id-fill, #555); font: 0.16px sans-serif; pointer-events: none; }"
     )
 
     geometry = ET.SubElement(svg, _tag("g"), {"id": "keyboard-geometry"})
+    decorations = ET.SubElement(geometry, _tag("g"), {"id": "keyboard-decorations"})
+    _render_decorations(decorations, model)
     keys = ET.SubElement(geometry, _tag("g"), {"id": "keys"})
     for key in model.keys:
         _render_key(keys, key)
@@ -62,6 +65,52 @@ def render_svg(model: Model, *, scale: float = 60, padding: float = 0.1) -> str:
         _render_key_id(factory_legends, key)
     ET.SubElement(svg, _tag("g"), {"id": "overlay-legends"})
     return ET.tostring(svg, encoding="unicode", xml_declaration=True)
+
+
+def _render_decorations(parent: ET.Element, model: Model) -> None:
+    if model.doodads:
+        for doodad in model.doodads:
+            _render_doodad(parent, doodad)
+    elif model.bounds_hint is not None:
+        _render_frame(parent, model.bounds_hint)
+
+
+def _render_doodad(parent: ET.Element, doodad: Doodad) -> None:
+    if doodad.outline is None:
+        attributes = {
+            "class": "keyboard-frame",
+            "id": f"doodad-{doodad.id}",
+            "x": _number(doodad.x),
+            "y": _number(doodad.y),
+            "width": _number(doodad.w),
+            "height": _number(doodad.h),
+        }
+        if doodad.corner_radius is not None:
+            radius = _number(min(doodad.corner_radius, doodad.w / 2, doodad.h / 2))
+            attributes["rx"] = radius
+            attributes["ry"] = radius
+        attributes.update(_doodad_style(doodad))
+        ET.SubElement(parent, _tag("rect"), attributes)
+        return
+
+    points = " ".join(f"{_number(x)},{_number(y)}" for x, y in doodad.points())
+    attributes = {"class": "keyboard-frame", "id": f"doodad-{doodad.id}", "points": points}
+    attributes.update(_doodad_style(doodad))
+    ET.SubElement(parent, _tag("polygon"), attributes)
+
+
+def _render_frame(parent: ET.Element, bounds: Bounds) -> None:
+    ET.SubElement(
+        parent,
+        _tag("rect"),
+        {
+            "class": "keyboard-frame",
+            "x": _number(bounds.x),
+            "y": _number(bounds.y),
+            "width": _number(bounds.w),
+            "height": _number(bounds.h),
+        },
+    )
 
 
 def _render_key(parent: ET.Element, key: Key) -> None:
@@ -141,6 +190,15 @@ def _key_id_style(key: Key) -> dict[str, str]:
     if colors is None:
         return {}
     return {"style": f"--key-id-fill: {colors[1]}"}
+
+
+def _doodad_style(doodad: Doodad) -> dict[str, str]:
+    if doodad.color is None:
+        return {}
+    colors = XKB_COLORS.get(doodad.color)
+    if colors is None:
+        return {}
+    return {"style": f"--doodad-fill: {colors[0]}"}
 
 
 def _number(value: float) -> str:

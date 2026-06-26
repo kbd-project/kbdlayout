@@ -12,7 +12,7 @@ from ..model import NR_KEYS
 
 
 EVDEV_OFFSET = 8
-STANDARD_KEY_WIDTH = 18.0
+FALLBACK_UNIT_SIZE = 18.0
 _TOKEN = re.compile(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|<[A-Za-z0-9_]+>|[A-Za-z_][A-Za-z0-9_]*|[-+]?(?:\d+\.\d*|\.\d+|\d+)|[{}\[\]=;,.]', re.DOTALL)
 
 
@@ -43,12 +43,13 @@ def import_xkb_geometry(
     geometry_path = Path(geometry_path)
     keycodes_path = Path(keycodes_path)
     geometry = _parse_geometry(geometry_path, geometry_name)
+    unit_size = _unit_size(geometry)
     keycodes = _parse_xkb_keycodes(keycodes_path.read_text(encoding="utf-8"))
     for fallback_path in fallback_keycodes_paths:
         fallback = _parse_xkb_keycodes(Path(fallback_path).read_text(encoding="utf-8"))
         keycodes = {**fallback, **keycodes}
-    keys, groups = _keys_from_geometry(geometry, keycodes)
-    return {
+    keys, groups = _keys_from_geometry(geometry, keycodes, unit_size)
+    data: dict[str, Any] = {
         "version": 1,
         "id": model_id,
         "name": name or geometry_name,
@@ -64,6 +65,13 @@ def import_xkb_geometry(
             }
         },
     }
+    if geometry["bounds"] is not None:
+        width, height = geometry["bounds"]
+        data["bounds"] = {"x": 0, "y": 0, "w": _units(width, unit_size), "h": _units(height, unit_size)}
+    doodads = _doodads_from_geometry(geometry, unit_size)
+    if doodads:
+        data["doodads"] = doodads
+    return data
 
 
 def _parse_geometry(path: Path, name: str, stack: set[tuple[Path, str]] | None = None) -> dict[str, Any]:
@@ -96,6 +104,8 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
     }
     shapes: dict[str, Shape] = {}
     sections: list[dict[str, Any]] = []
+    outlines: list[dict[str, Any]] = []
+    bounds: tuple[float, float] | None = None
     index = 0
     while index < len(tokens):
         token = tokens[index]
@@ -107,19 +117,35 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
             section_name = _string(tokens[index + 1])
             body, index = _block(tokens, index + 2)
             sections.append(_parse_section(section_name, body, defaults))
+        elif token == "outline" and index + 2 < len(tokens) and tokens[index + 2] == "{":
+            outline_name = _string(tokens[index + 1])
+            body, index = _block(tokens, index + 2)
+            outlines.append(_parse_outline(outline_name, body))
         elif token == "include" and index + 1 < len(tokens):
             included_path, included_name = _include_target(_string(tokens[index + 1]), geometry_dir)
             included = _parse_geometry(included_path, included_name, stack)
             defaults.update(included["defaults"])
             shapes.update(included["shapes"])
             sections.extend(included["sections"])
+            outlines.extend(included["outlines"])
+            if bounds is None:
+                bounds = included["bounds"]
             index += 2
         else:
             statement, index = _statement(tokens, index)
             assignment = _assignment(statement)
             if assignment and assignment[0] in defaults:
                 defaults[assignment[0]] = assignment[1]
-    return {"defaults": defaults, "shapes": shapes, "sections": sections}
+            elif assignment and assignment[0] in {"width", "height"}:
+                current_width, current_height = bounds or (0.0, 0.0)
+                if assignment[0] == "width":
+                    current_width = assignment[1]
+                else:
+                    current_height = assignment[1]
+                bounds = (current_width, current_height)
+    if bounds == (0.0, 0.0):
+        bounds = None
+    return {"defaults": defaults, "shapes": shapes, "sections": sections, "outlines": outlines, "bounds": bounds}
 
 
 def _parse_shape(tokens: list[str], default_corner_radius: float) -> Shape:
@@ -161,7 +187,24 @@ def _parse_section(name: str, tokens: list[str], defaults: dict[str, Any]) -> di
             assignment = _assignment(statement)
             if assignment:
                 values[assignment[0]] = assignment[1]
-    return {"name": name, "left": values.get("left", values["section.left"]), "top": values.get("top", 0.0), "rows": rows}
+    return {
+        "name": name,
+        "left": values.get("left", values["section.left"]),
+        "top": values.get("top", 0.0),
+        "angle": values.get("angle", 0.0),
+        "rows": rows,
+    }
+
+
+def _parse_outline(name: str, tokens: list[str]) -> dict[str, Any]:
+    values: dict[str, Any] = {"top": 0.0, "left": 0.0, "shape": None, "color": None}
+    index = 0
+    while index < len(tokens):
+        statement, index = _statement(tokens, index)
+        assignment = _assignment(statement)
+        if assignment and assignment[0] in values:
+            values[assignment[0]] = assignment[1]
+    return {"name": name, **values}
 
 
 def _parse_row(tokens: list[str], section_defaults: dict[str, Any]) -> dict[str, Any]:
@@ -257,15 +300,17 @@ def _parse_key_entry(tokens: list[str], defaults: dict[str, Any]) -> dict[str, A
     return {"name": name, "shape": shape, "gap": gap, "color": color}
 
 
-def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int], unit_size: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     shapes: dict[str, Shape] = geometry["shapes"]
     keys: list[dict[str, Any]] = []
     groups: list[dict[str, Any]] = []
     for section in geometry["sections"]:
         offset_y = float(section["top"])
+        section_left = float(section["left"])
+        section_angle = float(section["angle"])
         group_keys: list[str] = []
         for row in section["rows"]:
-            offset_x = float(section["left"]) + float(row["left"])
+            offset_x = section_left + float(row["left"])
             for entry in row["keys"]:
                 shape_name = entry["shape"]
                 if shape_name not in shapes:
@@ -281,22 +326,74 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
                 key = {
                     "id": key_name,
                     "kbd_keycode": kbd_keycode,
-                    "x": _units(offset_x + shape.x),
-                    "y": _units(offset_y + float(row["top"]) + shape.y),
-                    "w": _units(shape.width),
-                    "h": _units(shape.height),
+                    "x": _units(offset_x + shape.x, unit_size),
+                    "y": _units(offset_y + float(row["top"]) + shape.y, unit_size),
+                    "w": _units(shape.width, unit_size),
+                    "h": _units(shape.height, unit_size),
                 }
                 if entry["color"] is not None:
                     key["color"] = entry["color"]
                 if shape.corner_radius > 0:
-                    key["corner_radius"] = _units(shape.corner_radius)
+                    key["corner_radius"] = _units(shape.corner_radius, unit_size)
                 if shape.outline is not None:
-                    key["outline"] = [[_units(x), _units(y)] for x, y in shape.outline]
+                    key["outline"] = [[_units(x, unit_size), _units(y, unit_size)] for x, y in shape.outline]
+                if section_angle:
+                    key["rotation"] = {
+                        "angle": section_angle,
+                        "origin": [_units(section_left, unit_size), _units(offset_y, unit_size)],
+                    }
                 keys.append(key)
                 group_keys.append(key_name)
                 offset_x += shape.width
         groups.append({"id": _group_id(section["name"]), "key_ids": group_keys})
     return keys, groups
+
+
+def _doodads_from_geometry(geometry: dict[str, Any], unit_size: float) -> list[dict[str, Any]]:
+    shapes: dict[str, Shape] = geometry["shapes"]
+    doodads: list[dict[str, Any]] = []
+    for outline in geometry["outlines"]:
+        shape_name = outline["shape"]
+        if shape_name not in shapes:
+            raise XkbGeometryError(f"outline {outline['name']!r} refers to unknown shape {shape_name!r}")
+        shape = shapes[shape_name]
+        doodad = {
+            "type": "outline",
+            "id": outline["name"],
+            "x": _units(float(outline["left"]) + shape.x, unit_size),
+            "y": _units(float(outline["top"]) + shape.y, unit_size),
+            "w": _units(shape.width, unit_size),
+            "h": _units(shape.height, unit_size),
+        }
+        if outline["color"] is not None:
+            doodad["color"] = outline["color"]
+        if shape.corner_radius > 0:
+            doodad["corner_radius"] = _units(shape.corner_radius, unit_size)
+        if shape.outline is not None:
+            doodad["outline"] = [[_units(x, unit_size), _units(y, unit_size)] for x, y in shape.outline]
+        doodads.append(doodad)
+    return doodads
+
+
+def _unit_size(geometry: dict[str, Any]) -> float:
+    shapes: dict[str, Shape] = geometry["shapes"]
+    counts: dict[tuple[float, float], int] = {}
+    for section in geometry["sections"]:
+        for row in section["rows"]:
+            for entry in row["keys"]:
+                shape = shapes.get(entry["shape"])
+                if shape is None:
+                    continue
+                if shape.width <= 0 or shape.height <= 0:
+                    continue
+                ratio = shape.width / shape.height
+                if 0.75 <= ratio <= 1.25:
+                    size = (round(shape.width, 3), round(shape.height, 3))
+                    counts[size] = counts.get(size, 0) + 1
+    if not counts:
+        return FALLBACK_UNIT_SIZE
+    width, height = max(counts.items(), key=lambda item: (item[1], -item[0][0] * item[0][1]))[0]
+    return (width + height) / 2
 
 
 def _parse_xkb_keycodes(source: str) -> dict[str, int]:
@@ -386,8 +483,8 @@ def _string(value: str) -> str:
     return value
 
 
-def _units(value: float) -> float:
-    return value / STANDARD_KEY_WIDTH
+def _units(value: float, unit_size: float) -> float:
+    return value / unit_size
 
 
 def _group_id(name: str) -> str:

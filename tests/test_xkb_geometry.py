@@ -152,6 +152,92 @@ def test_importer_preserves_shape_corner_radius(tmp_path):
     assert next(key for key in model["keys"] if key["id"] == "SPCE")["corner_radius"] == pytest.approx(2 / 18)
 
 
+def test_importer_preserves_geometry_bounds_and_outline_doodads(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "decorated" {
+            width = 36;
+            height = 18;
+            shape.cornerRadius = 1;
+            shape "EDGE" { cornerRadius = 2, { [36,18] } };
+            shape "NORM" { { [18,18] } };
+            outline "Edges" {
+                top = 0;
+                left = 0;
+                shape = "EDGE";
+            };
+            key.shape = "NORM";
+            section "Alpha" {
+                row { keys { <ESC> }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<ESC> = 9;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "decorated", model_id="decorated")
+
+    assert model["bounds"] == {"x": 0, "y": 0, "w": 2, "h": 1}
+    assert model["doodads"] == [
+        {
+            "type": "outline",
+            "id": "Edges",
+            "x": 0,
+            "y": 0,
+            "w": 2,
+            "h": 1,
+            "corner_radius": pytest.approx(2 / 18),
+        }
+    ]
+
+
+def test_importer_normalizes_non_pc_key_units(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "compact" {
+            width = 46.5;
+            height = 30;
+            shape "NORM" { { [15.5, 15] } };
+            shape "WIDE" { { [31, 15] } };
+            key.shape = "NORM";
+            section "Alpha" {
+                row { keys { <AE01>, <AE02>, { <BKSP>, "WIDE" } }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<AE01> = 10;\n<AE02> = 11;\n<BKSP> = 22;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "compact", model_id="compact")
+
+    assert model["bounds"] == {"x": 0, "y": 0, "w": pytest.approx(46.5 / 15.25), "h": pytest.approx(30 / 15.25)}
+    assert next(key for key in model["keys"] if key["id"] == "AE01")["w"] == pytest.approx(15.5 / 15.25)
+    assert next(key for key in model["keys"] if key["id"] == "AE01")["h"] == pytest.approx(15 / 15.25)
+    assert next(key for key in model["keys"] if key["id"] == "BKSP")["w"] == pytest.approx(31 / 15.25)
+
+
+def test_importer_preserves_section_rotation(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "rotated" {
+            shape "NORM" { { [18,18] } };
+            key.shape = "NORM";
+            section "LeftAlpha" {
+                left = 36;
+                top = 18;
+                angle = 10;
+                row { keys { <AE01> }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<AE01> = 10;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "rotated", model_id="rotated")
+
+    assert model["keys"][0]["rotation"] == {"angle": 10.0, "origin": [2, 1]}
+
+
 def test_importer_rejects_cyclic_geometry_includes(tmp_path):
     (tmp_path / "a").write_text('xkb_geometry "a" { include "b(b)" };')
     (tmp_path / "b").write_text('xkb_geometry "b" { include "a(a)" };')
