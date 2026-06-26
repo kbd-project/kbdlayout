@@ -22,6 +22,11 @@ validated by the model library, not JSON Schema alone.
 global keyboard units. With the SVG coordinate system used here, a positive
 angle rotates visually clockwise.
 
+`legend_area`, when present, is a rectangle local to the key's bounding
+rectangle that hints where generated overlay text should be centered and sized.
+It is only a geometric placement hint; actual layout legends and keysyms remain
+outside the physical model.
+
 ## Identity and keycodes
 
 Each `keys[]` item has two independent identifiers:

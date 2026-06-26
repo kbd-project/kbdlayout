@@ -238,6 +238,39 @@ def test_importer_preserves_section_rotation(tmp_path):
     assert model["keys"][0]["rotation"] == {"angle": 10.0, "origin": [2, 1]}
 
 
+def test_importer_uses_shape_approx_as_legend_area(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "approx" {
+            shape "NORM" { { [18,18] } };
+            shape "RTRN" {
+                approx = { [0,19], [32,37] },
+                { [-14,19], [-14,37], [32,37], [32,0], [0,0], [0,19] }
+            };
+            key.shape = "NORM";
+            section "Alpha" {
+                row { keys { <AE01>, <AE02>, { <RTRN>, "RTRN" } }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<AE01> = 10;\n<AE02> = 11;\n<RTRN> = 36;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "approx", model_id="approx")
+
+    key = next(key for key in model["keys"] if key["id"] == "RTRN")
+    assert key["x"] == pytest.approx((36 - 14) / 18)
+    assert key["w"] == pytest.approx(46 / 18)
+    assert key["h"] == pytest.approx(37 / 18)
+    assert key["outline"][0] == [0, pytest.approx(19 / 18)]
+    assert key["legend_area"] == {
+        "x": pytest.approx(14 / 18),
+        "y": pytest.approx(19 / 18),
+        "w": pytest.approx(32 / 18),
+        "h": pytest.approx(18 / 18),
+    }
+
+
 def test_importer_rejects_cyclic_geometry_includes(tmp_path):
     (tmp_path / "a").write_text('xkb_geometry "a" { include "b(b)" };')
     (tmp_path / "b").write_text('xkb_geometry "b" { include "a(a)" };')

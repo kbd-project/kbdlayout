@@ -26,6 +26,7 @@ def test_all_catalog_models_validate(generated_models):
     [
         (lambda data: data["keys"].append(data["keys"][0].copy()), "duplicate key ID"),
         (lambda data: data["keys"][0].update({"outline": [[0, 0], [2, 0], [0, 1]]}), "outside the key bounds"),
+        (lambda data: data["keys"][0].update({"legend_area": {"x": 0.5, "y": 0, "w": 1, "h": 1}}), "legend_area must be inside"),
         (lambda data: data["groups"][0]["key_ids"].append("MISSING"), "references unknown keys"),
     ],
 )

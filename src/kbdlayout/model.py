@@ -81,6 +81,7 @@ class Key:
     color: str | None = None
     corner_radius: float | None = None
     outline: tuple[Point, ...] | None = None
+    legend_area: Bounds | None = None
     rotation: Rotation | None = None
 
     def points(self) -> tuple[Point, ...]:
@@ -215,7 +216,7 @@ def load_model(path: str | Path) -> Model:
 
 def _key(value: Any, path: str) -> Key:
     _expect_object(value, path)
-    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "color", "corner_radius", "rotation", "outline", "extensions"}, path)
+    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "color", "corner_radius", "rotation", "outline", "legend_area", "extensions"}, path)
     key = Key(
         id=_id(value.get("id"), f"{path}.id"),
         kbd_keycode=_kbd_keycode(value.get("kbd_keycode"), f"{path}.kbd_keycode"),
@@ -226,6 +227,7 @@ def _key(value: Any, path: str) -> Key:
         color=_color(value.get("color"), f"{path}.color") if "color" in value else None,
         corner_radius=_number(value.get("corner_radius"), f"{path}.corner_radius") if "corner_radius" in value else None,
         outline=_outline(value.get("outline"), path) if "outline" in value else None,
+        legend_area=_bounds(value.get("legend_area"), f"{path}.legend_area") if "legend_area" in value else None,
         rotation=_rotation(value.get("rotation"), path) if "rotation" in value else None,
     )
     if key.w <= 0 or key.h <= 0:
@@ -236,6 +238,9 @@ def _key(value: Any, path: str) -> Key:
         for x, y in key.outline:
             if not 0 <= x <= key.w or not 0 <= y <= key.h:
                 raise ModelError(f"{path}.outline point ({x}, {y}) is outside the key bounds")
+    if key.legend_area is not None:
+        if key.legend_area.x < 0 or key.legend_area.y < 0 or key.legend_area.x + key.legend_area.w > key.w or key.legend_area.y + key.legend_area.h > key.h:
+            raise ModelError(f"{path}.legend_area must be inside the key bounds")
     return key
 
 

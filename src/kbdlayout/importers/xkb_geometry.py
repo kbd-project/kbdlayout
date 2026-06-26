@@ -28,6 +28,7 @@ class Shape:
     height: float
     corner_radius: float
     outline: tuple[tuple[float, float], ...] | None
+    legend_area: tuple[float, float, float, float] | None
 
 
 def import_xkb_geometry(
@@ -150,28 +151,36 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
 
 def _parse_shape(tokens: list[str], default_corner_radius: float) -> Shape:
     corner_radius = default_corner_radius
+    legend_area: tuple[float, float, float, float] | None = None
+    outlines: list[list[tuple[float, float]]] = []
     index = 0
     while index < len(tokens):
         if tokens[index] == "cornerRadius" and index + 2 < len(tokens) and tokens[index + 1] == "=":
             corner_radius = float(tokens[index + 2])
             index += 3
+        elif tokens[index:index + 3] == ["approx", "=", "{"]:
+            approx, index = _block(tokens, index + 2)
+            points = _points(approx)
+            if not points:
+                raise XkbGeometryError("shape approx has no points")
+            legend_area = _point_bounds(points)
         elif tokens[index] == "{":
-            outline, _ = _block(tokens, index)
+            outline, index = _block(tokens, index)
             points = _points(outline)
             if not points:
                 raise XkbGeometryError("shape has no outline points")
-            if len(points) == 1:
-                width, height = points[0]
-                return Shape(x=0.0, y=0.0, width=width, height=height, corner_radius=corner_radius, outline=None)
-            min_x = min(x for x, _ in points)
-            min_y = min(y for _, y in points)
-            max_x = max(x for x, _ in points)
-            max_y = max(y for _, y in points)
-            normalized = tuple((x - min_x, y - min_y) for x, y in points)
-            return Shape(x=min_x, y=min_y, width=max_x - min_x, height=max_y - min_y, corner_radius=corner_radius, outline=normalized)
+            outlines.append(points)
         else:
             index += 1
-    raise XkbGeometryError("shape has no outline")
+    if not outlines:
+        raise XkbGeometryError("shape has no outline")
+    points = outlines[0]
+    if len(points) == 1:
+        width, height = points[0]
+        return Shape(x=0.0, y=0.0, width=width, height=height, corner_radius=corner_radius, outline=None, legend_area=legend_area)
+    min_x, min_y, width, height = _point_bounds(points)
+    normalized = tuple((x - min_x, y - min_y) for x, y in points)
+    return Shape(x=min_x, y=min_y, width=width, height=height, corner_radius=corner_radius, outline=normalized, legend_area=legend_area)
 
 
 def _parse_section(name: str, tokens: list[str], defaults: dict[str, Any]) -> dict[str, Any]:
@@ -337,6 +346,14 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int], unit
                     key["corner_radius"] = _units(shape.corner_radius, unit_size)
                 if shape.outline is not None:
                     key["outline"] = [[_units(x, unit_size), _units(y, unit_size)] for x, y in shape.outline]
+                if shape.legend_area is not None:
+                    legend_x, legend_y, legend_w, legend_h = shape.legend_area
+                    key["legend_area"] = {
+                        "x": _units(legend_x - shape.x, unit_size),
+                        "y": _units(legend_y - shape.y, unit_size),
+                        "w": _units(legend_w, unit_size),
+                        "h": _units(legend_h, unit_size),
+                    }
                 if section_angle:
                     key["rotation"] = {
                         "angle": section_angle,
@@ -471,6 +488,17 @@ def _points(tokens: list[str]) -> list[tuple[float, float]]:
         else:
             index += 1
     return points
+
+
+def _point_bounds(points: list[tuple[float, float]]) -> tuple[float, float, float, float]:
+    if len(points) == 1:
+        width, height = points[0]
+        return 0.0, 0.0, width, height
+    min_x = min(x for x, _ in points)
+    min_y = min(y for _, y in points)
+    max_x = max(x for x, _ in points)
+    max_y = max(y for _, y in points)
+    return min_x, min_y, max_x - min_x, max_y - min_y
 
 
 def _is_number(value: str) -> bool:

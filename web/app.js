@@ -419,10 +419,11 @@ function renderKeymapLegends() {
     }
 
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const area = keyLegendArea(key);
     label.classList.add("keymap-legend");
-    label.setAttribute("x", formatSvgNumber(key.x + key.w / 2));
-    label.setAttribute("y", formatSvgNumber(key.y + key.h / 2));
-    label.setAttribute("font-size", formatSvgNumber(legendFontSize(key, entry)));
+    label.setAttribute("x", formatSvgNumber(key.x + area.x + area.w / 2));
+    label.setAttribute("y", formatSvgNumber(key.y + area.y + area.h / 2));
+    label.setAttribute("font-size", formatSvgNumber(legendFontSize(key, entry, area)));
     label.setAttribute("dominant-baseline", "middle");
     label.setAttribute("style", keymapLegendStyle(key));
     label.append(svgTitle(entry.symbol));
@@ -560,12 +561,16 @@ function aliasForSymbol(symbol) {
   return symbolAliases.get(symbol) ?? symbolAliases.get(symbol.toLowerCase()) ?? null;
 }
 
-function legendFontSize(key, entry) {
+function keyLegendArea(key) {
+  return key.legend_area ?? {x: 0, y: 0, w: key.w, h: key.h};
+}
+
+function legendFontSize(key, entry, area = keyLegendArea(key)) {
   const compact = displayEntry(entry);
   const maxSize = 0.28;
   const minSize = 0.12;
-  const maxWidth = key.w * 0.8;
-  const maxHeight = key.h * 0.45;
+  const maxWidth = area.w * 0.8;
+  const maxHeight = area.h * 0.45;
   const widthSize = maxWidth / Math.max(compact.length * 0.55, 1);
   return Math.max(minSize, Math.min(maxSize, maxHeight, widthSize));
 }
