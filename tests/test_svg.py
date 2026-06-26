@@ -58,6 +58,16 @@ def test_render_svg_uses_imported_key_colors(generated_models):
     assert space_label.attrib["style"] == "--key-id-fill: #555"
 
 
+def test_render_svg_uses_imported_corner_radius(generated_models):
+    model = load_model(generated_models["pc-104-ansi"])
+    root = ET.fromstring(render_svg(model))
+
+    esc = root.find(".//svg:g[@data-key-id='ESC']/svg:rect", SVG_NS)
+    assert esc is not None
+    assert esc.attrib["rx"] == "0.0555555555556"
+    assert esc.attrib["ry"] == "0.0555555555556"
+
+
 @pytest.mark.parametrize("option", ["--scale=0", "--padding=-1"])
 def test_cli_rejects_invalid_render_options(option, generated_models):
     result = subprocess.run(

@@ -26,6 +26,7 @@ class Shape:
     y: float
     width: float
     height: float
+    corner_radius: float
     outline: tuple[tuple[float, float], ...] | None
 
 
@@ -91,6 +92,7 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
         "key.shape": None,
         "key.gap": 0.0,
         "key.color": None,
+        "shape.cornerRadius": 0.0,
     }
     shapes: dict[str, Shape] = {}
     sections: list[dict[str, Any]] = []
@@ -100,7 +102,7 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
         if token == "shape" and index + 2 < len(tokens) and tokens[index + 2] == "{":
             shape_name = _string(tokens[index + 1])
             body, index = _block(tokens, index + 2)
-            shapes[shape_name] = _parse_shape(body)
+            shapes[shape_name] = _parse_shape(body, defaults["shape.cornerRadius"])
         elif token == "section" and index + 2 < len(tokens) and tokens[index + 2] == "{":
             section_name = _string(tokens[index + 1])
             body, index = _block(tokens, index + 2)
@@ -120,24 +122,29 @@ def _parse_geometry_body(tokens: list[str], geometry_dir: Path, stack: set[tuple
     return {"defaults": defaults, "shapes": shapes, "sections": sections}
 
 
-def _parse_shape(tokens: list[str]) -> Shape:
+def _parse_shape(tokens: list[str], default_corner_radius: float) -> Shape:
+    corner_radius = default_corner_radius
     index = 0
     while index < len(tokens):
-        if tokens[index] == "{":
+        if tokens[index] == "cornerRadius" and index + 2 < len(tokens) and tokens[index + 1] == "=":
+            corner_radius = float(tokens[index + 2])
+            index += 3
+        elif tokens[index] == "{":
             outline, _ = _block(tokens, index)
             points = _points(outline)
             if not points:
                 raise XkbGeometryError("shape has no outline points")
             if len(points) == 1:
                 width, height = points[0]
-                return Shape(x=0.0, y=0.0, width=width, height=height, outline=None)
+                return Shape(x=0.0, y=0.0, width=width, height=height, corner_radius=corner_radius, outline=None)
             min_x = min(x for x, _ in points)
             min_y = min(y for _, y in points)
             max_x = max(x for x, _ in points)
             max_y = max(y for _, y in points)
             normalized = tuple((x - min_x, y - min_y) for x, y in points)
-            return Shape(x=min_x, y=min_y, width=max_x - min_x, height=max_y - min_y, outline=normalized)
-        index += 1
+            return Shape(x=min_x, y=min_y, width=max_x - min_x, height=max_y - min_y, corner_radius=corner_radius, outline=normalized)
+        else:
+            index += 1
     raise XkbGeometryError("shape has no outline")
 
 
@@ -281,6 +288,8 @@ def _keys_from_geometry(geometry: dict[str, Any], keycodes: dict[str, int]) -> t
                 }
                 if entry["color"] is not None:
                     key["color"] = entry["color"]
+                if shape.corner_radius > 0:
+                    key["corner_radius"] = _units(shape.corner_radius)
                 if shape.outline is not None:
                     key["outline"] = [[_units(x), _units(y)] for x, y in shape.outline]
                 keys.append(key)

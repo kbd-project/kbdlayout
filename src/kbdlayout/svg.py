@@ -84,6 +84,10 @@ def _render_key(parent: ET.Element, key: Key) -> None:
             "width": _number(key.w),
             "height": _number(key.h),
         }
+        if key.corner_radius is not None:
+            radius = _number(min(key.corner_radius, key.w / 2, key.h / 2))
+            attributes["rx"] = radius
+            attributes["ry"] = radius
         attributes.update(_key_style(key))
         ET.SubElement(
             key_group,

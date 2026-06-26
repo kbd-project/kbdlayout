@@ -46,6 +46,7 @@ class Key:
     w: float
     h: float
     color: str | None = None
+    corner_radius: float | None = None
     outline: tuple[Point, ...] | None = None
     rotation: Rotation | None = None
 
@@ -169,7 +170,7 @@ def load_model(path: str | Path) -> Model:
 
 def _key(value: Any, path: str) -> Key:
     _expect_object(value, path)
-    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "color", "rotation", "outline", "extensions"}, path)
+    _reject_unknown(value, {"id", "kbd_keycode", "x", "y", "w", "h", "color", "corner_radius", "rotation", "outline", "extensions"}, path)
     key = Key(
         id=_id(value.get("id"), f"{path}.id"),
         kbd_keycode=_kbd_keycode(value.get("kbd_keycode"), f"{path}.kbd_keycode"),
@@ -178,11 +179,14 @@ def _key(value: Any, path: str) -> Key:
         w=_number(value.get("w"), f"{path}.w"),
         h=_number(value.get("h"), f"{path}.h"),
         color=_color(value.get("color"), f"{path}.color") if "color" in value else None,
+        corner_radius=_number(value.get("corner_radius"), f"{path}.corner_radius") if "corner_radius" in value else None,
         outline=_outline(value.get("outline"), path) if "outline" in value else None,
         rotation=_rotation(value.get("rotation"), path) if "rotation" in value else None,
     )
     if key.w <= 0 or key.h <= 0:
         raise ModelError(f"{path}.w and {path}.h must be greater than zero")
+    if key.corner_radius is not None and key.corner_radius < 0:
+        raise ModelError(f"{path}.corner_radius must not be negative")
     if key.outline is not None:
         for x, y in key.outline:
             if not 0 <= x <= key.w or not 0 <= y <= key.h:

@@ -130,6 +130,28 @@ def test_importer_preserves_key_colors(tmp_path):
     assert next(key for key in model["keys"] if key["id"] == "SPCE")["color"] == "white"
 
 
+def test_importer_preserves_shape_corner_radius(tmp_path):
+    geometry = tmp_path / "geometry"
+    geometry.write_text(
+        '''xkb_geometry "corners" {
+            shape.cornerRadius = 1;
+            shape "NORM" { { [18,18] } };
+            shape "WIDE" { cornerRadius = 2, { [36,18] } };
+            key.shape = "NORM";
+            section "Alpha" {
+                row { keys { <ESC>, { <SPCE>, "WIDE" } }; };
+            };
+        };'''
+    )
+    keycodes = tmp_path / "evdev"
+    keycodes.write_text("<ESC> = 9;\n<SPCE> = 65;\n")
+
+    model = import_xkb_geometry(geometry, keycodes, "corners", model_id="corners")
+
+    assert next(key for key in model["keys"] if key["id"] == "ESC")["corner_radius"] == pytest.approx(1 / 18)
+    assert next(key for key in model["keys"] if key["id"] == "SPCE")["corner_radius"] == pytest.approx(2 / 18)
+
+
 def test_importer_rejects_cyclic_geometry_includes(tmp_path):
     (tmp_path / "a").write_text('xkb_geometry "a" { include "b(b)" };')
     (tmp_path / "b").write_text('xkb_geometry "b" { include "a(a)" };')
